@@ -1,9 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Table, TableHeader, TableBody, TableRow, TableCell } from '../../components/ui/table'
 import { FetchDynamic } from '../../components/Api/FetchDynamic'
-import { Asociado, SegmentoData } from '../../types/AsociacionRetirados'
+import { Asociado, SegmentoData, PaginationData } from '../../types/AsociacionRetirados'
 import { cn } from '@/utils/cn'
+import Pagination from '../../components/ui/Pagination/Pagination'
 
+interface ApiResponse {
+    success: boolean
+    data: Asociado[]
+    pagination: PaginationData
+    count: number
+    total: number
+    filters: any
+}
 
 const SegmentacionSalarial = () => {
     const [asociados, setAsociados] = useState<Asociado[]>([])
@@ -13,21 +22,68 @@ const SegmentacionSalarial = () => {
     const [searchTerm, setSearchTerm] = useState('')
     const [filterSegmento, setFilterSegmento] = useState<'todos' | 'oro' | 'plata' | 'bronce'>('todos')
 
+    // ✅ Estados de paginación
+    const [currentPage, setCurrentPage] = useState(1S
+
+    )
+    const [itemsPerPage, setItemsPerPage] = useState(10)
+    const [totalItems, setTotalItems] = useState(0)
+
+    // ✅ Efecto para cargar datos cuando cambia la página o items por página
     useEffect(() => {
         fetchAsociados()
-    }, [])
+    }, [currentPage, itemsPerPage])
+
+    // ✅ Resetear página cuando cambian los filtros
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [searchTerm, filterSegmento])
+
+    // ✅ Efecto para recargar cuando se resetea la página
+    useEffect(() => {
+        if (currentPage === 1) {
+            fetchAsociados()
+        }
+    }, [currentPage])
 
     const fetchAsociados = async () => {
         try {
             setLoading(true)
-            const response = await FetchDynamic('/asociados')
+
+            // ✅ Enviar parámetros de paginación al backend
+            const queryParams = new URLSearchParams({
+                page: currentPage.toString(),
+                limit: itemsPerPage.toString()
+            })
+
+            // ✅ Si hay búsqueda, enviarla al backend
+            if (searchTerm.trim()) {
+                queryParams.append('search', searchTerm.trim())
+            }
+
+            // ✅ Si hay filtro de segmento, enviarlo (esto se maneja en el frontend)
+            // Nota: La segmentación por salario se hace en el frontend
+
+            const response = await FetchDynamic(`/asociados?${queryParams.toString()}`)
             if (!response.ok) throw new Error('Error al cargar los asociados')
 
-            const data = await response.json()
-            const asociadosData = data.data || []
-            setAsociados(asociadosData)
+            const result: ApiResponse = await response.json()
 
-            // Segmentar los asociados
+            // ✅ Los datos vienen directamente en result.data (no anidado)
+            const asociadosData = result.data || []
+
+            if (!Array.isArray(asociadosData)) {
+                console.error('Los datos no son un array:', asociadosData)
+                setAsociados([])
+                setSegmentos({ oro: [], plata: [], bronce: [] })
+                setTotalItems(0)
+                return
+            }
+
+            setAsociados(asociadosData)
+            setTotalItems(result.pagination?.total || asociadosData.length)
+
+            // ✅ Segmentar los asociados (solo los datos de la página actual)
             const segmentados = segmentarAsociados(asociadosData)
             setSegmentos(segmentados)
         } catch (err) {
@@ -63,6 +119,38 @@ const SegmentacionSalarial = () => {
         return { oro, plata, bronce }
     }
 
+    // ✅ Filtrar por segmento en el frontend (los datos ya vienen paginados del backend)
+    const getFilteredAsociados = () => {
+        let filtered: Asociado[] = []
+
+        if (filterSegmento === 'todos') {
+            filtered = [...asociados]
+        } else {
+            filtered = segmentos[filterSegmento as keyof SegmentoData] || []
+        }
+
+        // ✅ La búsqueda ya se maneja en el backend, pero también podemos filtrar localmente
+        // si queremos una búsqueda más rápida (opcional)
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase().trim()
+            filtered = filtered.filter((a) =>
+                a.DESC05?.toLowerCase().includes(term) ||
+                a.NNIT05?.includes(term) ||
+                a.CIUD05?.toLowerCase().includes(term)
+            )
+        }
+
+        return filtered
+    }
+
+    const filteredAsociados = getFilteredAsociados()
+
+    // Estadísticas (solo de los datos actuales)
+    const totalAsociados = totalItems
+    const totalOro = segmentos.oro.length
+    const totalPlata = segmentos.plata.length
+    const totalBronce = segmentos.bronce.length
+
     const getSegmentoColor = (segmento: string) => {
         switch (segmento) {
             case 'oro': return 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 border-yellow-500/30'
@@ -74,18 +162,9 @@ const SegmentacionSalarial = () => {
 
     const getSegmentoBadge = (segmento: string) => {
         switch (segmento) {
-            case 'oro': return '🥇 Oro'
-            case 'plata': return '🥈 Plata'
-            case 'bronce': return '🥉 Bronce'
-            default: return ''
-        }
-    }
-
-    const getSalarioRange = (segmento: string) => {
-        switch (segmento) {
-            case 'oro': return '≥ $5.000.000'
-            case 'plata': return '$3.500.000 - $4.999.999'
-            case 'bronce': return '< $3.500.000'
+            case 'oro': return 'Oro'
+            case 'plata': return 'Plata'
+            case 'bronce': return 'Bronce'
             default: return ''
         }
     }
@@ -100,41 +179,16 @@ const SegmentacionSalarial = () => {
         }).format(num)
     }
 
-    const formatFecha = (fecha: string) => {
-        if (!fecha) return 'N/A'
-        // Asumiendo que FRDA05 es un número de fecha
-        return fecha
+    // ✅ Manejar cambio de página
+    const handlePageChange = (page: number) => {
+        setCurrentPage(page)
     }
 
-    // Filtrar asociados según búsqueda y segmento
-    const getFilteredAsociados = () => {
-        let filtered: Asociado[] = []
-
-        if (filterSegmento === 'todos') {
-            filtered = [...asociados]
-        } else {
-            filtered = segmentos[filterSegmento as keyof SegmentoData] || []
-        }
-
-        if (searchTerm.trim()) {
-            const term = searchTerm.toLowerCase().trim()
-            filtered = filtered.filter((a) =>
-                a.DESC05.toLowerCase().includes(term) ||
-                a.NNIT05.includes(term) ||
-                a.CIUD05.toLowerCase().includes(term)
-            )
-        }
-
-        return filtered
+    // ✅ Manejar cambio de items por página
+    const handleItemsPerPageChange = (newItemsPerPage: number) => {
+        setItemsPerPage(newItemsPerPage)
+        setCurrentPage(1)
     }
-
-    const filteredAsociados = getFilteredAsociados()
-
-    // Estadísticas
-    const totalAsociados = asociados.length
-    const totalOro = segmentos.oro.length
-    const totalPlata = segmentos.plata.length
-    const totalBronce = segmentos.bronce.length
 
     if (loading) {
         return (
@@ -168,7 +222,7 @@ const SegmentacionSalarial = () => {
                 {/* Header */}
                 <div className="mb-6">
                     <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-slate-100">
-                        Segmentación Salarial
+                        Asociados Retirados
                     </h1>
                     <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
                         Clasificación de asociados por rango de salario
@@ -205,7 +259,10 @@ const SegmentacionSalarial = () => {
                             type="text"
                             placeholder="Buscar por nombre, cédula o ciudad..."
                             value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value)
+                                setCurrentPage(1) // Resetear a primera página al buscar
+                            }}
                             className="w-full h-9 rounded-lg border border-gray-300 dark:border-orbit-border bg-white dark:bg-orbit-surface2 px-3 text-sm text-gray-900 dark:text-slate-200 focus:border-green-500 focus:ring-1 focus:ring-green-500/30 outline-none"
                         />
                     </div>
@@ -213,7 +270,10 @@ const SegmentacionSalarial = () => {
                         {['todos', 'oro', 'plata', 'bronce'].map((seg) => (
                             <button
                                 key={seg}
-                                onClick={() => setFilterSegmento(seg as typeof filterSegmento)}
+                                onClick={() => {
+                                    setFilterSegmento(seg as typeof filterSegmento)
+                                    setCurrentPage(1) // Resetear a primera página al filtrar
+                                }}
                                 className={cn(
                                     'px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize',
                                     filterSegmento === seg
@@ -270,13 +330,16 @@ const SegmentacionSalarial = () => {
                                         if (salario >= 5000000) segmento = 'oro'
                                         else if (salario >= 3500000) segmento = 'plata'
 
+                                        // ✅ Calcular índice global
+                                        const globalIndex = (currentPage - 1) * itemsPerPage + index + 1
+
                                         return (
                                             <TableRow
-                                                key={asociado.NCTA05}
+                                                key={asociado.NCTA05 || index}
                                                 className="hover:bg-gray-50 dark:hover:bg-orbit-surface2/50 transition-colors"
                                             >
                                                 <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
-                                                    {index + 1}
+                                                    {globalIndex}
                                                 </TableCell>
                                                 <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
                                                     {asociado.DESC05}
@@ -292,7 +355,7 @@ const SegmentacionSalarial = () => {
                                                 </TableCell>
                                                 <TableCell className="px-4 py-3 text-center">
                                                     <span className={cn(
-                                                        'inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold border',
+                                                        'inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold border',
                                                         getSegmentoColor(segmento)
                                                     )}>
                                                         {getSegmentoBadge(segmento)}
@@ -309,28 +372,16 @@ const SegmentacionSalarial = () => {
                         </Table>
                     </div>
 
-                    {/* Footer con totales */}
-                    <div className="px-4 py-3 bg-gray-50 dark:bg-orbit-surface2/30 border-t border-gray-200 dark:border-orbit-border">
-                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-gray-600 dark:text-slate-400">
-                            <span>
-                                Mostrando {filteredAsociados.length} de {asociados.length} asociados
-                            </span>
-                            <div className="flex gap-4">
-                                <span className="flex items-center gap-1">
-                                    <span className="w-3 h-3 rounded-full bg-yellow-500/50" />
-                                    Oro: {totalOro}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                    <span className="w-3 h-3 rounded-full bg-gray-400/50" />
-                                    Plata: {totalPlata}
-                                </span>
-                                <span className="flex items-center gap-1">
-                                    <span className="w-3 h-3 rounded-full bg-amber-700/50" />
-                                    Bronce: {totalBronce}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
+                    {/* ✅ Paginación con datos del backend */}
+                    <Pagination
+                        currentPage={currentPage}
+                        totalItems={totalItems}
+                        itemsPerPage={itemsPerPage}
+                        onPageChange={handlePageChange}
+                        onItemsPerPageChange={handleItemsPerPageChange}
+                        itemsPerPageOptions={[5, 10, 15, 20, 25, 50]}
+                        showItemsPerPageSelector={true}
+                    />
                 </div>
             </div>
         </div>

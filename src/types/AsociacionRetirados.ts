@@ -22,6 +22,15 @@ export interface Asociado {
     EMPR05: string
 }
 
+export interface PaginationData {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+}
+
 export interface SegmentoData {
     oro: Asociado[]
     plata: Asociado[]

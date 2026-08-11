@@ -6,9 +6,9 @@ export async function FetchDynamic(
 
   let baseUrl: string;
   if (isProduction) {
-    baseUrl = import.meta.env.VITE_API_URL || '/Sigth/api';
+    baseUrl = import.meta.env.VITE_API_URL || '/sra/api';
   } else {
-    baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5019';
+    baseUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
   }
 
   let cleanEndpoint = endpoint;
