@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronRight } from 'lucide-react'
+import { ChevronDown, ChevronRight, LogOut, User, Power, Settings } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { navigation } from '@/data/navigation'
 import { useSidebar } from '@/hooks/useSidebar'
+import { useAuth } from '@/context/AuthContext'
 import type { NavItem } from '@/types'
+import Swal from 'sweetalert2'
 
 function OrbitLogo({ collapsed }: { collapsed: boolean }) {
   return (
@@ -193,9 +195,67 @@ function NavItemLink({
 
 export function Sidebar() {
   const { collapsed, isMobile, mobileOpen, closeMobile } = useSidebar()
+  const { user, nombre, logout } = useAuth()
+  const navigate = useNavigate()
 
   const onNavClick = () => {
     if (isMobile) closeMobile()
+  }
+
+  const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: '¿Cerrar sesión?',
+      text: '¿Estás seguro de que deseas salir de la aplicación?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#dc2626',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Cerrar sesión',
+      cancelButtonText: 'Cancelar',
+      reverseButtons: true,
+      customClass: {
+        popup: 'rounded-xl',
+        title: 'text-lg font-semibold',
+        confirmButton: 'px-4 py-2 text-sm font-medium',
+        cancelButton: 'px-4 py-2 text-sm font-medium'
+      }
+    })
+
+    if (result.isConfirmed) {
+      try {
+        await logout()
+        navigate('/sign-in')
+      } catch (error) {
+        console.error('Error al cerrar sesión:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Ocurrió un error al cerrar sesión. Intenta nuevamente.'
+        })
+      }
+    }
+  }
+
+  const getInitials = () => {
+    if (nombre) {
+      const parts = nombre.split(' ')
+      if (parts.length >= 2) {
+        return `${parts[0][0]}${parts[1][0]}`.toUpperCase()
+      }
+      return nombre.substring(0, 2).toUpperCase()
+    }
+    if (user) {
+      return user.substring(0, 2).toUpperCase()
+    }
+    return 'U'
+  }
+
+  const getDisplayName = () => {
+    return nombre || user || 'Usuario'
+  }
+
+  const getDisplaySub = () => {
+    return user || 'usuario@coopserp.com'
   }
 
   return (
@@ -238,14 +298,53 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="border-t border-orbit-border p-3">
+      {/* ✅ Botón de cerrar sesión */}
+      <div className="border-t border-orbit-border p-3 space-y-2">
+        {/* ✅ Botón de cerrar sesión */}
+        <button
+          onClick={handleLogout}
+          className={cn(
+            'w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 group',
+            'hover:bg-red-400 hover:border-red-400',
+            collapsed && !isMobile && 'justify-center'
+          )}
+        >
+          <div className={cn(
+            'p-1.5 rounded-lg transition-colors flex-shrink-0',
+            'bg-red-500/10 text-red-400 group-hover:bg-red-200'
+          )}>
+            <Power className="w-4 h-4" />
+          </div>
+
+          <AnimatePresence>
+            {(!collapsed || isMobile) && (
+              <motion.span
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex-1 text-left text-sm font-medium text-red-400 group-hover:text-red-100 transition-colors"
+              >
+                Cerrar Sesión
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </button>
+
+        {/* ✅ Separador */}
+        <div className="border-t border-orbit-border/100" />
+
+        {/* ✅ Perfil del usuario */}
         <div className={cn(
-          'flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 cursor-pointer transition-colors',
+          'flex items-center gap-3 px-2 py-2 rounded-lg',
           collapsed && !isMobile && 'justify-center'
         )}>
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orbit-primary to-orbit-accent flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-            A
+          <div className={cn(
+            'w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0',
+            'bg-gradient-to-br from-orbit-primary to-orbit-accent'
+          )}>
+            {getInitials()}
           </div>
+
           <AnimatePresence>
             {(!collapsed || isMobile) && (
               <motion.div
@@ -254,8 +353,12 @@ export function Sidebar() {
                 exit={{ opacity: 0 }}
                 className="flex-1 min-w-0"
               >
-                <p className="text-sm font-medium text-slate-200 truncate">Alex Morgan</p>
-                <p className="text-xs text-slate-500 truncate">alex@orbitdash.io</p>
+                <p className="text-sm font-medium text-slate-200 truncate">
+                  {getDisplayName()}
+                </p>
+                <p className="text-xs text-slate-500 truncate">
+                  {getDisplaySub()}
+                </p>
               </motion.div>
             )}
           </AnimatePresence>

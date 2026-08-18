@@ -51,6 +51,15 @@ export const CitySelect = forwardRef<HTMLDivElement, CitySelectProps>(
         const [filteredCities, setFilteredCities] = useState(COLOMBIAN_CITIES)
         const wrapperRef = useRef<HTMLDivElement>(null)
 
+        const setRefs = (node: HTMLDivElement | null) => {
+            wrapperRef.current = node
+            if (typeof ref === 'function') {
+                ref(node)
+            } else if (ref) {
+                ref.current = node
+            }
+        }
+
         useEffect(() => {
             const filtered = COLOMBIAN_CITIES.filter(city =>
                 city.toLowerCase().includes(searchTerm.toLowerCase())
@@ -75,7 +84,7 @@ export const CitySelect = forwardRef<HTMLDivElement, CitySelectProps>(
         }
 
         return (
-            <div className="w-full" ref={wrapperRef}>
+            <div className="w-full" ref={setRefs}>
                 <div className="relative">
                     <Input
                         label={label}

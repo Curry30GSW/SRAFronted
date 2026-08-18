@@ -1,147 +1,270 @@
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useState, useRef, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react'
-import { Button, Input } from '@/components/ui'
+import { User, Lock, Eye, EyeOff, Building2 } from 'lucide-react'
+import ReCAPTCHA from 'react-google-recaptcha'
+import Swal from 'sweetalert2'
+import { useAuth } from '../../context/AuthContext'
+
+// ✅ Importar la imagen directamente
+import backgroundImage from '../../../public/images/logo/login.png'
 
 function SignInPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
+  const [user, setUser] = useState('')
+  const [password, setPassword] = useState('')
+  const [captchaToken, setCaptchaToken] = useState('')
+  const [isBlocked, setIsBlocked] = useState(false)
+  const [blockTime, setBlockTime] = useState(0)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const navigate = useNavigate()
+  const captchaRef = useRef<any>(null)
+  const { login, authenticated } = useAuth()
+
+  // ✅ Redirigir si ya está autenticado
+  useEffect(() => {
+    if (authenticated) {
+      navigate('/asociados')
+    }
+  }, [authenticated, navigate])
+
+  // Manejar bloqueo del botón
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval>
+
+    if (isBlocked && blockTime > 0) {
+      interval = setInterval(() => {
+        setBlockTime(prev => {
+          if (prev <= 1) {
+            setIsBlocked(false)
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [isBlocked, blockTime])
+
+  const handleCaptchaChange = (token: string | null) => {
+    setCaptchaToken(token || '')
+  }
+
+  const bloquearBotonLogin = (segundos: number) => {
+    setIsBlocked(true)
+    setBlockTime(segundos)
+
+    // Resetear captcha
+    if (captchaRef.current) {
+      captchaRef.current.reset()
+    }
+    setCaptchaToken('')
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
-    setTimeout(() => { setLoading(false); navigate('/dashboard') }, 1200)
+
+    // Validaciones
+    if (!user.trim() || !password.trim()) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Campos vacíos',
+        text: 'Por favor ingrese ambos campos.'
+      })
+      setLoading(false)
+      return
+    }
+
+    if (!captchaToken) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Captcha requerido',
+        text: 'Por favor verifique que no es un robot.'
+      })
+      setLoading(false)
+      return
+    }
+
+    try {
+      const result = await login(user, password, captchaToken)
+
+      if (!result.success) {
+        // Verificar si es error de bloqueo
+        if (result.message.includes('segundos')) {
+          const match = result.message.match(/en (\d+) segundos/)
+          if (match) {
+            const segundos = parseInt(match[1], 10)
+            bloquearBotonLogin(segundos)
+          }
+        }
+
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: result.message
+        })
+        setLoading(false)
+        return
+      }
+
+      // ✅ Login exitoso
+      Swal.fire({
+        icon: 'success',
+        title: '¡Bienvenido!',
+        text: result.message,
+        timer: 1500,
+        showConfirmButton: false
+      }).then(() => {
+        navigate('/asociados')
+      })
+
+    } catch (error) {
+      console.error('Error en login:', error)
+      Swal.fire({
+        icon: 'error',
+        title: 'Error',
+        text: 'Ocurrió un error al intentar iniciar sesión'
+      })
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="min-h-screen bg-orbit-bg flex">
-      {/* Ambient glow */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-orbit-primary/10 blur-[120px] rounded-full" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-orbit-accent/8 blur-[100px] rounded-full" />
+    <div className="min-h-screen relative flex items-center justify-center overflow-hidden">
+      {/* Imagen de fondo usando import */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          backgroundImage: `url(${backgroundImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        {/* Overlay oscuro para mejorar legibilidad */}
+        <div className="absolute inset-0 bg-black/55" />
       </div>
 
-      {/* Left panel — branding */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 border-r border-orbit-border relative">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-orbit-primary flex items-center justify-center glow-primary">
-            <svg viewBox="0 0 32 32" fill="none" className="w-5 h-5">
-              <circle cx="16" cy="16" r="4" fill="white" />
-              <ellipse cx="16" cy="16" rx="11" ry="5" stroke="white" strokeWidth="1.5" strokeOpacity="0.7" transform="rotate(-30 16 16)" />
-              <circle cx="23" cy="11" r="2" fill="#06B6D4" />
-            </svg>
-          </div>
-          <span className="text-slate-100 font-semibold text-xl tracking-tight">Orbit</span>
-        </div>
-
-        <div>
-          <h2 className="text-3xl font-bold text-slate-100 mb-4 leading-tight">
-            Your business data,{' '}
-            <span className="text-gradient">beautifully visualized</span>
-          </h2>
-          <p className="text-slate-500 text-base leading-relaxed mb-8">
-            From revenue dashboards to AI-powered insights — Orbit brings your entire operation into one elegant interface.
-          </p>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { value: '$284K', label: 'Monthly Revenue' },
-              { value: '14.2K', label: 'Active Users' },
-              { value: '99.9%', label: 'Uptime' },
-              { value: '4 Apps', label: 'Built-in Apps' },
-            ].map(stat => (
-              <div key={stat.label} className="bg-orbit-surface/60 border border-orbit-border rounded-xl p-4">
-                <p className="text-xl font-bold text-slate-100">{stat.value}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <p className="text-xs text-slate-700">
-          Open source MIT License — free forever
-        </p>
-      </div>
-
-      {/* Right panel — form */}
-      <div className="flex-1 flex items-center justify-center p-6">
+      {/* Contenido del login */}
+      <div className="relative z-10 w-full max-w-md px-6">
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-sm"
+          transition={{ duration: 0.5 }}
+          className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/30 shadow-2xl p-8"
         >
-          {/* Mobile logo */}
-          <div className="flex items-center gap-2 mb-8 lg:hidden">
-            <div className="w-8 h-8 rounded-lg bg-orbit-primary flex items-center justify-center">
-              <span className="text-white font-bold text-sm">O</span>
+          {/* Logo y título */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
+                <Building2 className="w-9 h-9 text-white" />
+              </div>
             </div>
-            <span className="text-slate-100 font-semibold text-lg">Orbit</span>
+            <h1 className="text-2xl font-bold text-white mb-2">
+              COOPSERP - VINCULACION
+            </h1>
+            <p className="text-white/70 text-sm">
+              Inicia sesión para continuar
+            </p>
           </div>
 
-          <h1 className="text-2xl font-bold text-slate-100 mb-1">Welcome back</h1>
-          <p className="text-slate-500 text-sm mb-8">Sign in to your account to continue</p>
+          {/* Formulario */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-1.5">
+                Usuario
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+                <input
+                  type="text"
+                  value={user}
+                  onChange={(e) => setUser(e.target.value)}
+                  placeholder="Nombre de usuario"
+                  className="w-full pl-10 pr-4 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-transparent transition-all"
+                  required
+                  disabled={loading || isBlocked}
+                />
+              </div>
+            </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <Input
-              label="Email address"
-              type="email"
-              placeholder="you@company.com"
-              prefix={<Mail className="w-3.5 h-3.5" />}
-              required
-            />
-            <Input
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="••••••••"
-              prefix={<Lock className="w-3.5 h-3.5" />}
-              suffix={
-                <button type="button" onClick={() => setShowPassword(v => !v)} className="text-slate-500 hover:text-slate-300 transition-colors">
-                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            <div>
+              <label className="block text-sm font-medium text-white/90 mb-1.5">
+                Contraseña
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/50" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-12 py-2.5 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-transparent transition-all"
+                  required
+                  disabled={loading || isBlocked}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white/80 transition-colors"
+                  disabled={loading || isBlocked}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
-              }
-              required
-            />
+              </div>
+            </div>
+
+            {/* ✅ reCAPTCHA */}
+            <div className="flex justify-center">
+              <ReCAPTCHA
+                ref={captchaRef}
+                sitekey="6LcCHpYrAAAAAPF4CUkS4fUfXcE4rekGxIurhsk1"
+                onChange={handleCaptchaChange}
+                theme="light"
+              />
+            </div>
 
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" className="rounded border-orbit-border bg-orbit-surface2 text-orbit-primary w-3.5 h-3.5" />
-                <span className="text-xs text-slate-500">Remember me</span>
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-white/20 bg-white/10 text-green-500 focus:ring-2 focus:ring-green-500/50"
+                />
+                <span className="text-sm text-white/70">Recordarme</span>
               </label>
-              <Link to="/forgot-password" className="text-xs text-orbit-primary-light hover:text-orbit-accent transition-colors">
-                Forgot password?
-              </Link>
             </div>
 
-            <Button type="submit" size="lg" className="w-full" loading={loading} icon={<ArrowRight className="w-4 h-4" />} iconPosition="right">
-              Sign In
-            </Button>
+            <button
+              type="submit"
+              disabled={loading || isBlocked || !captchaToken}
+              className="w-full py-2.5 bg-gradient-to-r from-green-600 to-green-600 hover:from-green-700 hover:to-green-700 text-white font-medium rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isBlocked ? (
+                <>
+                  <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  </svg>
+                  Bloqueado ({blockTime}s)
+                </>
+              ) : loading ? (
+                <>
+                  <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Iniciando sesión...
+                </>
+              ) : (
+                'Iniciar Sesión'
+              )}
+            </button>
           </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-orbit-border" />
-            </div>
-            <div className="relative flex justify-center">
-              <span className="text-xs text-slate-600 bg-orbit-bg px-3">or continue with</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            {['GitHub', 'Google'].map(provider => (
-              <Button key={provider} variant="outline" size="md" className="w-full text-xs">
-                {provider}
-              </Button>
-            ))}
-          </div>
-
-          <p className="text-center text-xs text-slate-500 mt-8">
-            Don't have an account?{' '}
-            <Link to="/sign-up" className="text-orbit-primary-light hover:text-orbit-accent transition-colors font-medium">
-              Sign up free
-            </Link>
-          </p>
         </motion.div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from '@/components/layout/Layout';
+import ProtectedRoute from '../routes/ProtectedRoute';
 
 // Componente de loading
 const PageLoader = () => (
@@ -31,28 +32,30 @@ export const AppRoutes = () => {
     return (
         <Suspense fallback={<PageLoader />}>
             <Routes>
-                {/* Auth routes — no sidebar layout */}
+                {/* ✅ Rutas públicas - Sin autenticación */}
                 <Route path="/sign-in" element={<SignInPage />} />
                 <Route path="/sign-up" element={<SignUpPage />} />
                 <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-
-                {/* Páginas públicas */}
-
                 <Route path="/afiliacion/:codigo" element={<AfiliacionPage />} />
                 <Route path="/afiliacion" element={<AfiliacionPage />} />
 
-                {/* Main app routes — with sidebar layout */}
-                <Route element={<Layout />}>
-                    <Route path="/asociados" element={<SegmentacionSalarial />} />
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                    <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/billing" element={<BillingPage />} />
-                    <Route path="/crm/contacts" element={<ContactsPage />} />
-                    <Route path="/ai/chat" element={<ChatPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
-                    <Route path="/help" element={<HelpPage />} />
-                    <Route path="/components" element={<ComponentsPage />} />
+                {/* ✅ Rutas protegidas - Requieren autenticación */}
+                <Route element={<ProtectedRoute />}>
+                    <Route element={<Layout />}>
+                        <Route path="/asociados" element={<SegmentacionSalarial />} />
+                        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                        <Route path="/dashboard" element={<DashboardPage />} />
+                        <Route path="/billing" element={<BillingPage />} />
+                        <Route path="/crm/contacts" element={<ContactsPage />} />
+                        <Route path="/ai/chat" element={<ChatPage />} />
+                        <Route path="/settings" element={<SettingsPage />} />
+                        <Route path="/help" element={<HelpPage />} />
+                        <Route path="/components" element={<ComponentsPage />} />
+                    </Route>
                 </Route>
+
+                {/* ✅ Ruta 404 - No encontrada */}
+                <Route path="*" element={<Navigate to="/sign-in" replace />} />
             </Routes>
         </Suspense>
     );

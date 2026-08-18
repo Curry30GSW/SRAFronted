@@ -20,6 +20,7 @@ export interface Asociado {
     DESC04: string
     INDC05: string
     EMPR05: string
+    DESC03: string
 }
 
 export interface PaginationData {

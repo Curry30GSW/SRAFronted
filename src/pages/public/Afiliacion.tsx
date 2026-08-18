@@ -6,6 +6,8 @@ import { PhoneInput } from '../../components/forms/PhoneInput'
 import { FormData, FormErrors } from '../../types/AsociacionForm'
 import { cn } from '../../utils/cn'
 import coopserpLogo from '../../../public/images/logo/coopserp.png';
+import { FetchDynamic } from '../../components/Api/FetchDynamic'
+import { ModalSolicitudEnviada } from '../../components/Modals/ModalSolicitudEnviada'
 
 const initialFormData: FormData = {
     tipoDocumento: '',
@@ -35,6 +37,17 @@ const initialFormData: FormData = {
     autorizaAperturaCuenta: false,
 }
 
+const mapTipoTrabajador = (value: FormData['tipoTrabajador']) => {
+    if (value === 'trabajador') return 'EMPLEADO'
+    if (value === 'pensionado') return 'PENSIONADO'
+    return null
+}
+
+const mapSectorEmpresa = (value: FormData['sectorEmpresa']) => {
+    if (!value) return null
+    return value.toUpperCase()
+}
+
 // Configuración de pasos
 const STEPS = [
     { id: 1, label: 'Documento de Identificación', labelShort: 'Doc' },
@@ -45,13 +58,15 @@ const STEPS = [
 ]
 
 const AffiliationForm = () => {
+    const cedulaRef = useRef<HTMLInputElement>(null)
     const [formData, setFormData] = useState<FormData>(initialFormData)
     const [errors, setErrors] = useState<FormErrors>({})
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [submitError, setSubmitError] = useState<string | null>(null)
     const [validationPassed, setValidationPassed] = useState(false)
     const [currentStep, setCurrentStep] = useState(1)
+    const [showSuccessModal, setShowSuccessModal] = useState(false)
     const [currentDateTime, setCurrentDateTime] = useState('')
-    const cedulaRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         const updateDateTime = () => {
@@ -75,6 +90,7 @@ const AffiliationForm = () => {
         const interval = setInterval(updateDateTime)
         return () => clearInterval(interval)
     }, [])
+
 
     const validateCedula = (value: string) => {
         return /^\d+$/.test(value)
@@ -179,18 +195,7 @@ const AffiliationForm = () => {
         }
 
         if (currentStep === 5) {
-            const newErrors: FormErrors = {}
-            if (!formData.autorizaCentralesRiesgo) {
-                newErrors.autorizaCentralesRiesgo = 'Debe autorizar la consulta en centrales de riesgo'
-            }
-            if (!formData.aceptaTratamientoDatos) {
-                newErrors.aceptaTratamientoDatos = 'Debe aceptar el tratamiento de datos'
-            }
-            if (!formData.autorizaAperturaCuenta) {
-                newErrors.autorizaAperturaCuenta = 'Debe autorizar la apertura de cuenta'
-            }
-            setErrors(newErrors)
-            return Object.keys(newErrors).length === 0
+            return true
         }
 
         return true
@@ -208,18 +213,117 @@ const AffiliationForm = () => {
         setErrors({})
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const buildVinculacionPayload = (formData: FormData) => ({
+        tipo_documento: formData.tipoDocumento,
+        numero_documento: formData.cedula,
+        lugar_expedicion: formData.lugarExpedicion,
+        fecha_expedicion: formData.fechaExpedicion,
+        nombres: formData.nombres,
+        apellidos: formData.apellidos,
+        fecha_nacimiento: formData.fechaNacimiento,
+        lugar_nacimiento: formData.lugarNacimiento,
+        lugar_procedencia: formData.lugarEscritura,
+        ciudad_residencia: formData.ciudadResidencia,
+        direccion_residencia: formData.direccionResidencia,
+        tipo_trabajador: mapTipoTrabajador(formData.tipoTrabajador),
+        pagaduria: formData.pagaduria || null,
+        empresa: formData.empresa || null,
+        sector_empresa: mapSectorEmpresa(formData.sectorEmpresa),
+        cargo: formData.cargo || null,
+        tiempo_cargo: formData.tiempoCargo || null,
+        direccion_correspondencia: formData.direccionCorrespondencia,
+        ciudad_correspondencia: formData.ciudadCorrespondencia,
+        telefonos: formData.telefonos,
+        whatsapp: formData.whatsapp,
+        correo_electronico: formData.correo,
+        central_riesgos: formData.autorizaCentralesRiesgo,
+        tratamiento_datos: formData.aceptaTratamientoDatos,
+        apertura_coopserp: formData.autorizaAperturaCuenta
+    })
+
+    const validateAutorizaciones = (): boolean => {
+        const newErrors: FormErrors = {}
+        if (!formData.autorizaCentralesRiesgo) {
+            newErrors.autorizaCentralesRiesgo = 'Debe autorizar la consulta en centrales de riesgo'
+        }
+        if (!formData.aceptaTratamientoDatos) {
+            newErrors.aceptaTratamientoDatos = 'Debe aceptar el tratamiento de datos'
+        }
+        if (!formData.autorizaAperturaCuenta) {
+            newErrors.autorizaAperturaCuenta = 'Debe autorizar la apertura de cuenta'
+        }
+        setErrors(newErrors)
+        return Object.keys(newErrors).length === 0
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        setSubmitError(null)
 
+        // Validar documento
         if (!validateDocumento()) return
-        if (!validateCurrentStep()) return
 
+        // Validar autorizaciones (paso 5)
+        if (!validateAutorizaciones()) return
+
+
+        const currentStepBackup = currentStep
+
+        // Validar paso 2
+        setCurrentStep(2)
+        if (!validateCurrentStep()) {
+            setCurrentStep(currentStepBackup)
+            return
+        }
+
+        // Validar paso 3
+        setCurrentStep(3)
+        if (!validateCurrentStep()) {
+            setCurrentStep(currentStepBackup)
+            return
+        }
+
+        // Validar paso 4
+        setCurrentStep(4)
+        if (!validateCurrentStep()) {
+            setCurrentStep(currentStepBackup)
+            return
+        }
+
+        // Restaurar paso actual
+        setCurrentStep(currentStepBackup)
+
+        // Si todo está validado, enviar
         setIsSubmitting(true)
-        console.log('Formulario válido:', formData)
-        setTimeout(() => {
+
+        try {
+            const payload = buildVinculacionPayload(formData)
+            const response = await FetchDynamic('/vinculacion', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            })
+
+            const result = await response.json()
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.message || 'No se pudo enviar la solicitud')
+            }
+
+            setFormData(initialFormData)
+            setErrors({})
+            setValidationPassed(false)
+            setCurrentStep(1)
+            setShowSuccessModal(true)
+
+        } catch (err) {
+            setSubmitError(
+                err instanceof Error
+                    ? err.message
+                    : 'Error desconocido al enviar el formulario'
+            )
+        } finally {
             setIsSubmitting(false)
-            alert('Formulario enviado exitosamente')
-        }, 1000)
+        }
     }
 
     // ==================== STEP INDICATOR ====================
@@ -338,7 +442,6 @@ const AffiliationForm = () => {
                     >
                         <option value="">Seleccione tipo</option>
                         <option value="CC">Cédula de Ciudadanía</option>
-                        <option value="TI">Tarjeta de Identidad</option>
                         <option value="CE">Cédula de Extranjería</option>
                         <option value="NIT">NIT</option>
                     </select>
@@ -702,103 +805,115 @@ const AffiliationForm = () => {
 
     // ==================== MAIN RETURN ====================
     return (
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
-            {/* ==================== HEADER ==================== */}
-            <div className="mb-6 pb-6 border-b border-gray-200 dark:border-orbit-border">
-                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    {/* Logo - Izquierda */}
-                    <div className="flex-shrink-0">
-                        <img
-                            src={coopserpLogo}
-                            alt="Coopserp Logo"
-                            className="h-20 w-auto object-contain sm:h-24 md:h-28"
-                        />
-                    </div>
+        <>
+            <div className="min-h-screen  bg-gradient-to-br from-gray-100 to-gray-200 flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+                {/* ==================== HEADER ==================== */}
+                <div className='bg-white'>
+                    <div className="  mb-6 pb-6  dark:border-orbit-border">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                            {/* Logo - Izquierda */}
+                            <div className="flex-shrink-0">
+                                <img
+                                    src={coopserpLogo}
+                                    alt="Coopserp Logo"
+                                    className="h-20 w-auto object-contain sm:h-24 md:h-28"
+                                />
+                            </div>
 
-                    {/* Título - Centro */}
-                    <div className="text-center flex-1">
-                        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100">
-                            Formato Vinculación Virtual
-                        </h1>
-                        <p className="text-sm md:text-base text-gray-500 dark:text-slate-400 font-medium">
-                            FASE 1 - Verificación de datos
-                        </p>
-                    </div>
+                            {/* Título - Centro */}
+                            <div className="text-center flex-1">
+                                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-slate-100 uppercase">
+                                    Formato Vinculación Virtual
+                                </h1>
+                                <p className="text-sm md:text-base text-red-500 font-bold dark:text-red-400 font-medium">
+                                    FASE 1 - Registrar Datos
+                                </p>
+                            </div>
 
-                    {/* Fecha y hora - Derecha */}
-                    <div className="text-right flex-shrink-0">
-                        <p className="text-md font-medium text-gray-700 dark:text-slate-300">
-                            {currentDateTime}
-                        </p>
-                        <p className="text-xs text-gray-500 dark:text-slate-400">
-                            Hora actual
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div className="w-full max-w-7xl mx-auto">
-                <div className="bg-white dark:bg-orbit-surface2/30 rounded-lg border border-gray-200 dark:border-orbit-border p-4 sm:p-6">
-
-                    {/* Stepper */}
-                    {renderStepIndicator()}
-
-                    {/* Form */}
-                    <form onSubmit={handleSubmit}>
-                        <div className="bg-gray-50 dark:bg-orbit-surface2/30 rounded-lg border border-gray-200 dark:border-orbit-border p-3 sm:p-4 mt-4 sm:mt-6">
-                            <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-slate-200 mb-3 sm:mb-4">
-                                {currentStep}. {STEPS[currentStep - 1].label}
-                            </h3>
-                            {renderStep()}
-                        </div>
-
-                        {/* Navigation Buttons */}
-                        <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-4 sm:mt-6 pt-4 border-t border-gray-200 dark:border-orbit-border">
-                            <button
-                                type="button"
-                                onClick={handlePrevStep}
-                                disabled={currentStep === 1}
-                                className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-orbit-surface2 border border-gray-300 dark:border-orbit-border rounded-lg hover:bg-gray-50 dark:hover:bg-orbit-surface3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                ← Anterior
-                            </button>
-
-                            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setFormData(initialFormData)
-                                        setErrors({})
-                                        setValidationPassed(false)
-                                        setCurrentStep(1)
-                                    }}
-                                    className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-orbit-surface2 border border-gray-300 dark:border-orbit-border rounded-lg hover:bg-gray-50 dark:hover:bg-orbit-surface3 transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-
-                                {currentStep < STEPS.length ? (
-                                    <button
-                                        type="button"
-                                        onClick={handleNextStep}
-                                        className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-700/80 transition-colors"
-                                    >
-                                        Siguiente →
-                                    </button>
-                                ) : (
-                                    <button
-                                        type="submit"
-                                        disabled={isSubmitting}
-                                        className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {isSubmitting ? 'Enviando...' : 'Enviar Formulario'}
-                                    </button>
-                                )}
+                            {/* Fecha y hora - Derecha */}
+                            <div className="text-right flex-shrink-0 p-2">
+                                <p className="text-md font-bold text-gray-700 dark:text-slate-300">
+                                    {currentDateTime}
+                                </p>
+                                <p className="text-xs font-bold text-gray-500 dark:text-slate-400">
+                                    Hora actual
+                                </p>
                             </div>
                         </div>
-                    </form>
+                    </div>
                 </div>
+
+
+                <div className="w-full max-w-7xl mx-auto">
+                    <div className="bg-white rounded-lg border border-gray-200 dark:border-orbit-border p-4 sm:p-6">
+
+                        {/* Stepper */}
+                        {renderStepIndicator()}
+
+                        {/* Form */}
+                        <form onSubmit={handleSubmit}>
+                            <div className="bg-gray-50 dark:bg-orbit-surface2/30 rounded-lg border border-gray-200 dark:border-orbit-border p-3 sm:p-4 mt-4 sm:mt-6">
+                                <h3 className="text-base sm:text-lg font-semibold text-gray-800 dark:text-slate-200 mb-3 sm:mb-4">
+                                    {currentStep}. {STEPS[currentStep - 1].label}
+                                </h3>
+                                {renderStep()}
+                            </div>
+
+                            {/* Navigation Buttons */}
+                            <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-4 sm:mt-6 pt-4 border-t border-gray-200 dark:border-orbit-border">
+                                <button
+                                    type="button"
+                                    onClick={handlePrevStep}
+                                    disabled={currentStep === 1}
+                                    className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-orbit-surface2 border border-gray-300 dark:border-orbit-border rounded-lg hover:bg-gray-50 dark:hover:bg-orbit-surface3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    ← Anterior
+                                </button>
+
+                                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setFormData(initialFormData)
+                                            setErrors({})
+                                            setValidationPassed(false)
+                                            setCurrentStep(1)
+                                        }}
+                                        className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-orbit-surface2 border border-gray-300 dark:border-orbit-border rounded-lg hover:bg-gray-50 dark:hover:bg-orbit-surface3 transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+
+                                    {currentStep < STEPS.length ? (
+                                        <button
+                                            type="button"
+                                            onClick={handleNextStep}
+                                            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-700/80 transition-colors"
+                                        >
+                                            Siguiente →
+                                        </button>
+                                    ) : (
+                                        <button
+                                            type="submit"
+                                            disabled={isSubmitting}
+                                            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                        >
+                                            {isSubmitting ? 'Enviando...' : 'Enviar Formulario'}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
             </div>
-        </div>
+
+            <ModalSolicitudEnviada
+                isOpen={showSuccessModal}
+                onClose={() => setShowSuccessModal(false)}
+            />
+        </>
     )
 }
 

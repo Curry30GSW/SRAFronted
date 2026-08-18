@@ -18,7 +18,6 @@ export const PhoneInput = ({
     error,
     required = false,
     placeholder = "Ingrese número de teléfono",
-    ...props
 }: PhoneInputProps) => {
     const [newPhone, setNewPhone] = useState('')
 
