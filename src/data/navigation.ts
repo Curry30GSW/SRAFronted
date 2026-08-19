@@ -19,8 +19,8 @@ export const navigation: NavSection[] = [
         label: 'Fases Asociacion',
         icon: LayoutDashboard,
         children: [
-          { label: 'Fase 1', href: '/crm/contacts' },
-          { label: 'Fase 2', href: '/crm/contacts' },
+          { label: 'Fase 1', href: '/asociaciones/F1' },
+          { label: 'Fase 2', href: '/asociaciones/fase2' },
           { label: 'Fase 3', href: '/crm/contacts' },
         ],
       },    

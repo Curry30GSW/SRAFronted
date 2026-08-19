@@ -70,24 +70,13 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(({
                         transition={{ duration: 0.15 }}
                         style={{ zIndex: 999998 }}
                     />
-                    {title && (
-                        <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
-                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                                {title}
-                            </h2>
 
-                            <button
-                                onClick={onClose}
-                                className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl"
-                            >
-                                ×
-                            </button>
-                        </div>
-                    )}
                     {/* Contenedor del modal */}
                     <motion.div
-                        ref={ref} // Asigna el ref aquí
-                        className={`relative ${isFullscreen ? "w-full h-full" : `w-full ${sizeClasses[size]}`
+                        ref={ref}
+                        className={`relative ${isFullscreen
+                                ? "w-full h-full"
+                                : `w-full ${sizeClasses[size]}`
                             } bg-white dark:bg-gray-800 rounded-xl shadow-2xl overflow-hidden ${className}`}
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -99,8 +88,26 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(({
                         onClick={(e) => e.stopPropagation()}
                         style={{ zIndex: 999999 }}
                     >
+                        {/* ✅ Título y botón cerrar DENTRO del modal */}
+                        {title && (
+                            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                    {title}
+                                </h2>
+                                <button
+                                    onClick={onClose}
+                                    className="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 text-xl"
+                                    aria-label="Cerrar"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                        )}
+
                         {/* Contenido */}
-                        <div className="max-h-[90vh] overflow-y-auto p-6">{children}</div>
+                        <div className="max-h-[90vh] overflow-y-auto p-6">
+                            {children}
+                        </div>
                     </motion.div>
                 </div>
             )}

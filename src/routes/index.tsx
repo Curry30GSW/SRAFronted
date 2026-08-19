@@ -25,6 +25,7 @@ const HelpPage = lazy(() => import('@/pages/help/HelpPage'));
 const ComponentsPage = lazy(() => import('@/pages/components/ComponentsPage'));
 
 const SegmentacionSalarial = lazy(() => import('@/pages/asociados/SegmentacionSalarial'));
+const Fase1Asociacion = lazy(() => import('@/pages/asociados/Fase1Asociacion'));
 // ==================== PÁGINAS PÚBLICAS ====================
 const AfiliacionPage = lazy(() => import('@/pages/public/Afiliacion'));
 
@@ -43,6 +44,7 @@ export const AppRoutes = () => {
                 <Route element={<ProtectedRoute />}>
                     <Route element={<Layout />}>
                         <Route path="/asociados" element={<SegmentacionSalarial />} />
+                        <Route path="/asociaciones/F1" element={<Fase1Asociacion />} />
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/billing" element={<BillingPage />} />
