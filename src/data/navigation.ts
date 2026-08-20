@@ -23,37 +23,38 @@ export const navigation: NavSection[] = [
           { label: 'Fase 2', href: '/asociaciones/fase2' },
           { label: 'Fase 3', href: '/crm/contacts' },
         ],
-      },    
+      }, 
+      { label: 'Links', icon: Puzzle, href: '/links' },   
     ],
   },
-  {
-    title: 'Apps',
-    items: [
-      { label: 'AI Chat', icon: MessageSquare, href: '/ai/chat', badge: 'New' },
-      {
-        label: 'CRM',
-        icon: Users,
-        children: [
-          { label: 'Contacts', href: '/crm/contacts' },
-          { label: 'Pipeline', href: '/crm/contacts' },
-        ],
-      },
-      {
-        label: 'Billing',
-        icon: CreditCard,
-        children: [
-          { label: 'Overview', href: '/billing' },
-          { label: 'Invoices', href: '/billing' },
-        ],
-      },
-    ],
-  },
-  {
-    title: 'Design System',
-    items: [
-      { label: 'Components', icon: Puzzle, href: '/components' },
-      { label: 'Settings', icon: Settings, href: '/settings' },
-      { label: 'Help', icon: HelpCircle, href: '/help' },
-    ],
-  },
+  // {
+  //   title: 'Apps',
+  //   items: [
+  //     { label: 'AI Chat', icon: MessageSquare, href: '/ai/chat', badge: 'New' },
+  //     {
+  //       label: 'CRM',
+  //       icon: Users,
+  //       children: [
+  //         { label: 'Contacts', href: '/crm/contacts' },
+  //         { label: 'Pipeline', href: '/crm/contacts' },
+  //       ],
+  //     },
+  //     {
+  //       label: 'Billing',
+  //       icon: CreditCard,
+  //       children: [
+  //         { label: 'Overview', href: '/billing' },
+  //         { label: 'Invoices', href: '/billing' },
+  //       ],
+  //     },
+  //   ],
+  // },
+  // {
+  //   title: 'Design System',
+  //   items: [
+  //     { label: 'Components', icon: Puzzle, href: '/components' },
+  //     { label: 'Settings', icon: Settings, href: '/settings' },
+  //     { label: 'Help', icon: HelpCircle, href: '/help' },
+  //   ],
+  // },
 ]

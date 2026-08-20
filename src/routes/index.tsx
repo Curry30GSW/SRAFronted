@@ -26,6 +26,7 @@ const ComponentsPage = lazy(() => import('@/pages/components/ComponentsPage'));
 
 const SegmentacionSalarial = lazy(() => import('@/pages/asociados/SegmentacionSalarial'));
 const Fase1Asociacion = lazy(() => import('@/pages/asociados/Fase1Asociacion'));
+const LinksAfiliacionPage = lazy(() => import('@/pages/asociados/LinksAfiliacionPage'));
 // ==================== PÁGINAS PÚBLICAS ====================
 const AfiliacionPage = lazy(() => import('@/pages/public/Afiliacion'));
 
@@ -45,6 +46,7 @@ export const AppRoutes = () => {
                     <Route element={<Layout />}>
                         <Route path="/asociados" element={<SegmentacionSalarial />} />
                         <Route path="/asociaciones/F1" element={<Fase1Asociacion />} />
+                        <Route path="/links" element={<LinksAfiliacionPage />} />
                         <Route path="/" element={<Navigate to="/dashboard" replace />} />
                         <Route path="/dashboard" element={<DashboardPage />} />
                         <Route path="/billing" element={<BillingPage />} />

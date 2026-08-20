@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Input } from '../../components/ui/Input'
+import { useParams } from 'react-router-dom'
 import { CitySelect } from '../../components/forms/CitySelect'
 import { DateInput } from '../../components/forms/DateInput'
 import { PhoneInput } from '../../components/forms/PhoneInput'
@@ -8,6 +9,8 @@ import { cn } from '../../utils/cn'
 import coopserpLogo from '../../../public/images/logo/coopserp.png';
 import { FetchDynamic } from '../../components/Api/FetchDynamic'
 import { ModalSolicitudEnviada } from '../../components/Modals/ModalSolicitudEnviada'
+import { ModalFase1 } from '../../components/Modals/ModalFase1'
+import { ModalConfirmacion } from '../../components/Modals/ModalConfirmacion'
 
 const initialFormData: FormData = {
     tipoDocumento: '',
@@ -58,6 +61,12 @@ const STEPS = [
 ]
 
 const AffiliationForm = () => {
+    const { codigo } = useParams<{ codigo?: string }>()
+    const codigoLink = codigo || null
+    const [linkValido, setLinkValido] = useState<boolean | null>(null)
+    const [usuarioAfiliador, setUsuarioAfiliador] = useState<string>('')
+    const [validandoLink, setValidandoLink] = useState<boolean>(!!codigo)
+
     const cedulaRef = useRef<HTMLInputElement>(null)
     const [formData, setFormData] = useState<FormData>(initialFormData)
     const [errors, setErrors] = useState<FormErrors>({})
@@ -67,6 +76,53 @@ const AffiliationForm = () => {
     const [currentStep, setCurrentStep] = useState(1)
     const [showSuccessModal, setShowSuccessModal] = useState(false)
     const [currentDateTime, setCurrentDateTime] = useState('')
+
+    //Estados Sebas
+
+    const [loading, setLoading] = useState(false)
+    const [errorValidacion, setErrorValidacion] = useState('')
+    const [infoAsociado, setInfoAsociado] = useState<any>(null)
+    const [infoMensaje, setInfoMensaje] = useState('')
+
+    const [showModal, setShowModal] = useState(false)
+    const [modalType, setModalType] = useState<'success' | 'error' | 'info' | 'warning'>('info')
+    const [modalTitle, setModalTitle] = useState('')
+    const [modalMessage, setModalMessage] = useState('')
+    const [modalData, setModalData] = useState<any>(null)
+    const [modalOnConfirm, setModalOnConfirm] = useState<(() => void) | undefined>()
+
+    const [confirmData, setConfirmData] = useState<any>(null);
+
+    const [showConfirmModal, setShowConfirmModal] = useState(false)
+
+    useEffect(() => {
+        const validarLink = async () => {
+            if (!codigo) {
+                setValidandoLink(false)
+                setLinkValido(true)
+                return
+            }
+
+            try {
+                const response = await FetchDynamic(`/links/validar/${codigo}`)
+                const result = await response.json()
+
+                if (result.success) {
+                    setLinkValido(true)
+                    setUsuarioAfiliador(result.data.usuario)
+                } else {
+                    setLinkValido(false)
+                }
+            } catch (error) {
+                console.error('Error validando link:', error)
+                setLinkValido(false)
+            } finally {
+                setValidandoLink(false)
+            }
+        }
+
+        validarLink()
+    }, [codigo])
 
     useEffect(() => {
         const updateDateTime = () => {
@@ -91,12 +147,68 @@ const AffiliationForm = () => {
         return () => clearInterval(interval)
     }, [])
 
+    // Mostrar loading mientras se valida el link
+    if (validandoLink) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="w-8 h-8 border-4 border-green-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+        )
+    }
+
+    // Mostrar error si el link es inválido
+    if (codigo && linkValido === false) {
+        return (
+            <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50 dark:bg-gray-900">
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8 max-w-md w-full text-center">
+                    <svg className="w-16 h-16 mx-auto text-red-500 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+                        Link inválido
+                    </h2>
+                    <p className="text-gray-600 dark:text-gray-400">
+                        El link de afiliación no es válido o ha expirado.
+                        Contacta con el usuario que te envió el link.
+                    </p>
+                    <button
+                        onClick={() => window.location.href = '/afiliacion'}
+                        className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                        Ir a vinculación espontánea
+                    </button>
+                </div>
+            </div>
+        )
+    }
+
+
+    const showModalAlert = (
+        type: 'success' | 'error' | 'info' | 'warning',
+        title: string,
+        message: string,
+        data?: any,
+        onConfirm?: () => void
+    ) => {
+        setModalType(type)
+        setModalTitle(title)
+        setModalMessage(message)
+        setModalData(data || null)
+        setModalOnConfirm(onConfirm || undefined)
+        setShowModal(true)
+    }
+
+    const closeModal = () => {
+        setShowModal(false)
+        setModalData(null)
+    }
+
 
     const validateCedula = (value: string) => {
         return /^\d+$/.test(value)
     }
 
-    const validateDocumento = () => {
+    const validateDocumento = async () => {
         const newErrors: FormErrors = {}
 
         if (!formData.tipoDocumento) {
@@ -120,15 +232,135 @@ const AffiliationForm = () => {
         setErrors(newErrors)
         const isValid = Object.keys(newErrors).length === 0
 
-        if (isValid) {
-            setValidationPassed(true)
-        } else {
+        if (!isValid) {
             if (newErrors.cedula && cedulaRef.current) {
                 cedulaRef.current.focus()
             }
+            return false
         }
 
-        return isValid
+        setLoading(true)
+        setErrorValidacion('')
+        setInfoAsociado(null)
+        setInfoMensaje('')
+        setValidationPassed(false)
+
+        try {
+            const response = await FetchDynamic(`/vinculacion/validar/${formData.cedula}`)
+            const result = await response.json()
+
+            if (!result.success) {
+                setValidationPassed(false)
+                setErrorValidacion(result.message || 'Error en la validación')
+                showModalAlert('error', '❌ Error', result.message || 'Error en la validación')
+                setLoading(false)
+                return false
+            }
+
+            if (result.tipo === "ACTIVO") {
+                setInfoAsociado({
+                    nombre: result.data?.nombre || '',
+                    cuenta: result.data?.cuenta || '',
+                    nomina: result.data?.nomina || '',
+                    agencia: result.data?.agencia || ''
+                })
+
+                setConfirmData({
+                    nombre: result.data?.nombre || '',
+                    cuenta: result.data?.cuenta || '',
+                    nomina: result.data?.nomina || '',
+                    agencia: result.data?.agencia || ''
+                })
+                setShowConfirmModal(true)
+                setLoading(false)
+                return false
+            }
+
+            // ✅ Caso: Usuario RETIRADO (puede pasar)
+            if (result.tipo === "RETIRADO") {
+                setValidationPassed(true)
+                setErrorValidacion('')
+                setInfoMensaje('✅ Asociado retirado - Puede revincularse')
+
+                if (result.data) {
+                    setInfoAsociado({
+                        nombre: result.data.nombre || '',
+                        cuenta: result.data.cuenta || '',
+                        nomina: result.data.nomina || '',
+                        agencia: result.data?.agencia || '',
+                        estado: 'RETIRADO',
+                        tipo: 'RETIRADO'
+                    })
+
+                    // Pre-cargar datos
+                    if (result.data.nombre) {
+                        const nombreCompleto = result.data.nombre.split(' ')
+                        setFormData(prev => ({
+                            ...prev,
+                            nombres: nombreCompleto[0] || '',
+                            apellidos: nombreCompleto.slice(1).join(' ') || '',
+                            cuenta: result.data.cuenta || '',
+                            nomina: result.data.nomina || '',
+                            agencia: result.data?.agencia || ''
+                        }))
+                    }
+
+                    showModalAlert(
+                        'info',
+                        '🔄 Revinculación',
+                        'Asociado retirado. Puede iniciar el proceso de revinculación.',
+                        {
+                            nombre: result.data.nombre || '',
+                            cuenta: result.data.cuenta || '',
+                            nomina: result.data.nomina || '',
+                            agencia: result.data?.agencia || ''
+                        }
+                    )
+                }
+                setLoading(false)
+                return true
+            }
+
+            // ✅ Caso: Usuario NUEVO
+            if (result.tipo === "NUEVO") {
+                setValidationPassed(true)
+                setErrorValidacion('')
+                setInfoMensaje('✅ Documento validado - Complete el formulario')
+
+                showModalAlert(
+                    'success',
+                    '✅ Usuario Nuevo',
+                    'Documento validado correctamente. Complete el formulario para continuar.'
+                )
+                setLoading(false)
+                return true
+            }
+
+            // ❌ Tipo desconocido
+            setValidationPassed(false)
+            setErrorValidacion(result.message || 'Estado no permitido')
+            setInfoAsociado(null)
+            showModalAlert(
+                'error',
+                '❌ Error',
+                result.message || 'Estado no permitido para la validación'
+            )
+            setLoading(false)
+            return false
+
+        } catch (err) {
+            console.error('Error en validación:', err)
+            setValidationPassed(false)
+            setLoading(false)
+            setErrorValidacion('Error de conexión con el servidor')
+            setInfoAsociado(null)
+            showModalAlert(
+                'error',
+                '❌ Error de conexión',
+                'No se pudo conectar con el servidor. Verifique su conexión.'
+            )
+            return false
+        }
     }
 
     const handleCedulaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -139,15 +371,61 @@ const AffiliationForm = () => {
         }
     }
 
-    const validateCurrentStep = (): boolean => {
-        if (currentStep === 1) {
-            if (!validationPassed) {
-                const isValid = validateDocumento()
-                if (!isValid) return false
-            }
-            return true
-        }
+    const handleConfirmContinuar = () => {
+        setShowConfirmModal(false)
+        setValidationPassed(true)  // ✅ Permite continuar
+        setErrorValidacion('')
+        setInfoMensaje('Podrá continuar con el proceso de vinculación en otra nómina')
 
+        // Mostrar un mensaje de éxito (opcional)
+        showModalAlert(
+            'success',
+            'Continuación permitida',
+            'Podrá continuar con el proceso de vinculación.',
+            {
+                nombre: confirmData?.nombre || '',
+                cuenta: confirmData?.cuenta || '',
+                nomina: confirmData?.nomina || '',
+                agencia: confirmData?.agencia || ''
+            }
+        )
+
+        setConfirmData(null)
+    }
+
+    const handleCancelContinuar = () => {
+        setShowConfirmModal(false)
+        setValidationPassed(false)
+        setErrorValidacion('No puede continuar con el proceso de vinculación.')
+
+        setInfoMensaje('')
+        setInfoAsociado(null)
+        setLoading(false)
+
+        // ✅ Mensaje informativo para el usuario
+        const nombreAsociado = confirmData?.nombre || 'el asociado'
+        const agencia = confirmData?.agencia || 'su agencia correspondiente'
+
+        // Mostrar mensaje informativo
+        showModalAlert(
+            'info',
+            'Proceso cancelado',
+            `Sr(a): ${nombreAsociado}, para realizar cualquier trámite como consultas, solicitud de créditos, certificados o cualquier otro proceso, por favor comuníquese con su agencia ${agencia} o para más información consulta nuestra página web: https://www.coopserp.com/wp/.`,
+            {
+                nombre: confirmData?.nombre || '',
+                cuenta: confirmData?.cuenta || '',
+                nomina: confirmData?.nomina || '',
+                agencia: confirmData?.agencia || ''
+            }
+        )
+        setConfirmData(null)
+    }
+
+    const validateCurrentStep = (): boolean => {
+
+        if (currentStep === 1) {
+            return validationPassed
+        }
         if (currentStep === 2) {
             const newErrors: FormErrors = {}
             if (!formData.nombres) newErrors.nombres = 'Nombres requeridos'
@@ -202,9 +480,22 @@ const AffiliationForm = () => {
     }
 
     const handleNextStep = () => {
+        if (currentStep === 1 && !validationPassed) {
+            setErrorValidacion('⚠️ Debe validar el documento antes de continuar')
+            return
+        }
+
+        if (currentStep === 1 && validationPassed) {
+            setCurrentStep(currentStep + 1)
+            setErrors({})
+            setSubmitError(null)
+            return
+        }
+
         if (validateCurrentStep()) {
             setCurrentStep(Math.min(currentStep + 1, STEPS.length))
             setErrors({})
+            setSubmitError(null)
         }
     }
 
@@ -213,33 +504,53 @@ const AffiliationForm = () => {
         setErrors({})
     }
 
-    const buildVinculacionPayload = (formData: FormData) => ({
-        tipo_documento: formData.tipoDocumento,
-        numero_documento: formData.cedula,
-        lugar_expedicion: formData.lugarExpedicion,
-        fecha_expedicion: formData.fechaExpedicion,
-        nombres: formData.nombres,
-        apellidos: formData.apellidos,
-        fecha_nacimiento: formData.fechaNacimiento,
-        lugar_nacimiento: formData.lugarNacimiento,
-        lugar_procedencia: formData.lugarEscritura,
-        ciudad_residencia: formData.ciudadResidencia,
-        direccion_residencia: formData.direccionResidencia,
-        tipo_trabajador: mapTipoTrabajador(formData.tipoTrabajador),
-        pagaduria: formData.pagaduria || null,
-        empresa: formData.empresa || null,
-        sector_empresa: mapSectorEmpresa(formData.sectorEmpresa),
-        cargo: formData.cargo || null,
-        tiempo_cargo: formData.tiempoCargo || null,
-        direccion_correspondencia: formData.direccionCorrespondencia,
-        ciudad_correspondencia: formData.ciudadCorrespondencia,
-        telefonos: formData.telefonos,
-        whatsapp: formData.whatsapp,
-        correo_electronico: formData.correo,
-        central_riesgos: formData.autorizaCentralesRiesgo,
-        tratamiento_datos: formData.aceptaTratamientoDatos,
-        apertura_coopserp: formData.autorizaAperturaCuenta
-    })
+    const handleCancel = () => {
+        setFormData(initialFormData)
+        setErrors({})
+        setSubmitError(null)
+        setValidationPassed(false)
+        setErrorValidacion('')
+        setInfoAsociado(null)
+        setInfoMensaje('')
+        setLoading(false)
+        setCurrentStep(1)
+    }
+
+    const buildVinculacionPayload = (formData: FormData) => {
+        const payload: any = {
+            tipo_documento: formData.tipoDocumento,
+            numero_documento: formData.cedula,
+            lugar_expedicion: formData.lugarExpedicion,
+            fecha_expedicion: formData.fechaExpedicion,
+            nombres: formData.nombres,
+            apellidos: formData.apellidos,
+            fecha_nacimiento: formData.fechaNacimiento,
+            lugar_nacimiento: formData.lugarNacimiento,
+            lugar_procedencia: formData.lugarEscritura,
+            ciudad_residencia: formData.ciudadResidencia,
+            direccion_residencia: formData.direccionResidencia,
+            tipo_trabajador: mapTipoTrabajador(formData.tipoTrabajador),
+            pagaduria: formData.pagaduria || null,
+            empresa: formData.empresa || null,
+            sector_empresa: mapSectorEmpresa(formData.sectorEmpresa),
+            cargo: formData.cargo || null,
+            tiempo_cargo: formData.tiempoCargo || null,
+            direccion_correspondencia: formData.direccionCorrespondencia,
+            ciudad_correspondencia: formData.ciudadCorrespondencia,
+            telefonos: formData.telefonos,
+            whatsapp: formData.whatsapp,
+            correo_electronico: formData.correo,
+            central_riesgos: formData.autorizaCentralesRiesgo,
+            tratamiento_datos: formData.aceptaTratamientoDatos,
+            apertura_coopserp: formData.autorizaAperturaCuenta
+        }
+
+        if (codigoLink) {
+            payload.codigo_link = codigoLink
+        }
+
+        return payload
+    }
 
     const validateAutorizaciones = (): boolean => {
         const newErrors: FormErrors = {}
@@ -260,45 +571,48 @@ const AffiliationForm = () => {
         e.preventDefault()
         setSubmitError(null)
 
-        // Validar documento
-        if (!validateDocumento()) return
+        // Un submit accidental nunca debe validar autorizaciones antes del paso 5.
+        if (currentStep !== STEPS.length) {
+            handleNextStep()
+            return
+        }
 
-        // Validar autorizaciones (paso 5)
         if (!validateAutorizaciones()) return
-
 
         const currentStepBackup = currentStep
 
-        // Validar paso 2
         setCurrentStep(2)
         if (!validateCurrentStep()) {
             setCurrentStep(currentStepBackup)
             return
         }
 
-        // Validar paso 3
         setCurrentStep(3)
         if (!validateCurrentStep()) {
             setCurrentStep(currentStepBackup)
             return
         }
 
-        // Validar paso 4
         setCurrentStep(4)
         if (!validateCurrentStep()) {
             setCurrentStep(currentStepBackup)
             return
         }
 
-        // Restaurar paso actual
         setCurrentStep(currentStepBackup)
 
-        // Si todo está validado, enviar
         setIsSubmitting(true)
 
         try {
             const payload = buildVinculacionPayload(formData)
-            const response = await FetchDynamic('/vinculacion', {
+
+
+            let url = '/vinculacion'
+            if (codigoLink) {
+                url += `?codigo_link=${codigoLink}`
+            }
+
+            const response = await FetchDynamic(url, {
                 method: 'POST',
                 body: JSON.stringify(payload)
             })
@@ -809,7 +1123,7 @@ const AffiliationForm = () => {
             <div className="min-h-screen  bg-gradient-to-br from-gray-100 to-gray-200 flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
                 {/* ==================== HEADER ==================== */}
                 <div className='bg-white'>
-                    <div className="  mb-6 pb-6  dark:border-orbit-border">
+                    <div className="mb-6 pb-6 dark:border-orbit-border">
                         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                             {/* Logo - Izquierda */}
                             <div className="flex-shrink-0">
@@ -840,6 +1154,13 @@ const AffiliationForm = () => {
                                 </p>
                             </div>
                         </div>
+                        {codigoLink && usuarioAfiliador && (
+                            <div className="mt-2 text-center bg-green-50 dark:bg-green-900/20 py-1 px-4 rounded-lg border border-green-200 dark:border-green-700/50">
+                                <p className="text-sm text-green-700 dark:text-green-300">
+                                    Vinculación a través del link de: <span className="font-bold">{usuarioAfiliador}</span>
+                                </p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -873,12 +1194,7 @@ const AffiliationForm = () => {
                                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                                     <button
                                         type="button"
-                                        onClick={() => {
-                                            setFormData(initialFormData)
-                                            setErrors({})
-                                            setValidationPassed(false)
-                                            setCurrentStep(1)
-                                        }}
+                                        onClick={handleCancel}
                                         className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-orbit-surface2 border border-gray-300 dark:border-orbit-border rounded-lg hover:bg-gray-50 dark:hover:bg-orbit-surface3 transition-colors"
                                     >
                                         Cancelar
@@ -888,7 +1204,12 @@ const AffiliationForm = () => {
                                         <button
                                             type="button"
                                             onClick={handleNextStep}
-                                            className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-white bg-green-700 rounded-lg hover:bg-green-700/80 transition-colors"
+                                            disabled={currentStep === 1 && !validationPassed}
+                                            className={`w-full sm:w-auto px-4 py-2 text-sm font-medium text-white  rounded-lg  
+                                                        transition-colors ${currentStep === 1 && !validationPassed
+                                                    ? 'bg-gray-400 cursor-not-allowed opacity-50'
+                                                    : 'bg-green-600 hover:bg-green-700'
+                                                }`}
                                         >
                                             Siguiente →
                                         </button>
@@ -903,11 +1224,39 @@ const AffiliationForm = () => {
                                     )}
                                 </div>
                             </div>
+                            {/* ✅ Mensaje cuando el botón está bloqueado */}
+                            {currentStep === 1 && !validationPassed && errorValidacion && (
+                                <p className="text-sm text-red-500 dark:text-red-400 mt-2 text-center">
+                                    ⚠️ {errorValidacion}
+                                </p>
+                            )}
+
                         </form>
                     </div>
                 </div>
 
             </div>
+
+            <ModalConfirmacion
+                isOpen={showConfirmModal}
+                onClose={() => {
+                    setShowConfirmModal(false)
+                    setConfirmData(null)
+                }}
+                data={confirmData}
+                onConfirm={handleConfirmContinuar}
+                onCancel={handleCancelContinuar}
+            />
+            <ModalFase1
+                isOpen={showModal}
+                onClose={closeModal}
+                type={modalType}
+                title={modalTitle}
+                message={modalMessage}
+                data={modalData}
+                onConfirm={modalOnConfirm}
+
+            />
 
             <ModalSolicitudEnviada
                 isOpen={showSuccessModal}
