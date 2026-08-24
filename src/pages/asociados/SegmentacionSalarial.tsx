@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useMemo } from 'react'
 import { Table, TableHeader, TableBody, TableRow, TableCell } from '../../components/ui/table'
 import { FetchDynamic } from '../../components/Api/FetchDynamic'
 import { Asociado, SegmentoData, PaginationData } from '../../types/AsociacionRetirados'
@@ -10,7 +10,7 @@ import ModalCrearGestion from '../../components/Modals/ModalCrearGestion'
 import { ModalVerDetalle } from '../../components/Modals/ModalVerDetalle'
 import { ModalHistorialGestiones } from '../../components/Modals/ModalHistorialGestiones'
 import { FiltrosAvanzados } from '../../components//filtros/FiltrosAvanzados'
-
+import { ExportExcelButton } from '../components/ExportExcelButton'
 
 interface ApiResponse {
     success: boolean
@@ -220,10 +220,6 @@ const SegmentacionSalarial = () => {
         setCurrentPage(1)
     }
 
-    const aplicarFiltros = () => {
-        setCurrentPage(1)
-    }
-
     const handlePageChange = (page: number) => {
         setCurrentPage(page)
     }
@@ -232,6 +228,32 @@ const SegmentacionSalarial = () => {
         setItemsPerPage(newItemsPerPage)
         setCurrentPage(1)
     }
+
+    const filtrosParaExport = useMemo(() => {
+        return {
+            search: searchTerm || undefined,
+            distrito: filtroDistrito || undefined,
+            motivo: filtroMotivo || undefined,
+            salarioMin: filtroSalarioMin || undefined,
+            salarioMax: filtroSalarioMax || undefined,
+            segmento: filterSegmento !== 'todos' ? filterSegmento : undefined,
+            sortBy: sortBy || undefined,
+            sortOrder: sortOrder || undefined,
+        };
+
+    }, [searchTerm, filtroDistrito, filtroMotivo, filterSegmento, filtroSalarioMax, filtroSalarioMin, sortBy, sortOrder]);
+
+
+    const hasActiveFilters = useMemo(() => {
+        return Boolean(
+            filtroDistrito ||
+            filtroMotivo ||
+            filterSegmento !== 'todos' ||
+            filtroSalarioMin ||
+            filtroSalarioMax ||
+            searchTerm
+        );
+    }, [filtroDistrito, filtroMotivo, filterSegmento, filtroSalarioMin, filtroSalarioMax, searchTerm]);
 
     if (loading) {
         return (
@@ -310,6 +332,16 @@ const SegmentacionSalarial = () => {
                             <p className="text-[14px] sm:text-[14px] text-orange-600 dark:text-orange-400/70">&lt; $3.5M</p>
                         </div>
                     </div>
+
+                    <div className='mb-3'>
+                        <ExportExcelButton
+                            filtros={filtrosParaExport}
+                            datosOriginales={asociados}
+                            datosFiltrados={filteredAsociados}
+                            filtrosActivos={hasActiveFilters}
+                        />
+                    </div>
+
 
                     {/* ✅ Filtros y búsqueda */}
                     <FiltrosAvanzados

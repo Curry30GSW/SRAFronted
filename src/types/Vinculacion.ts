@@ -1,7 +1,7 @@
 export interface Vinculacion {
     id_solicitante: number;
     tipo_documento: string;
-    numero_documento: string;
+    numero_documento: string | number;
     lugar_expedicion: string;
     fecha_expedicion: string;
     nombres: string;
@@ -20,6 +20,11 @@ export interface Vinculacion {
     direccion_correspondencia: string;
     ciudad_correspondencia: string;
     telefonos: string; 
+    nivel_educativo: string;
+    estado_civil: string;
+    tiene_vivienda: boolean;
+    tiene_vehiculo: boolean;
+    placa_vehiculo: string;
     whatsapp: string;
     correo_electronico: string;
     central_riesgos: boolean;
@@ -29,6 +34,8 @@ export interface Vinculacion {
     fecha_creacion: string;
     fecha_actualizacion: string | null;
     activo: number;
+    afiliador_nombre?: string | null;
+    afiliador_usuario?: string | null;
 }
 
 export interface VinculacionPagination {

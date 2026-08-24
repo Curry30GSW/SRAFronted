@@ -3,12 +3,33 @@
 /**
  * Parsear teléfonos desde JSON string
  */
-export const parseTelefonos = (telefonosStr: string): string[] => {
-    try {
-        return JSON.parse(telefonosStr);
-    } catch {
-        return [];
+export const parseTelefonos = (telefonos: any): string[] => {
+    if (!telefonos) return [];
+    
+    if (Array.isArray(telefonos)) return telefonos;
+    
+    if (typeof telefonos === 'string') {
+        // Si es un JSON string
+        try {
+            const parsed = JSON.parse(telefonos);
+            if (Array.isArray(parsed)) return parsed;
+        } catch {}
+        
+        // Si tiene comas
+        if (telefonos.includes(',')) {
+            return telefonos.split(',').map(t => t.trim()).filter(t => t);
+        }
+        
+        return [telefonos];
     }
+    
+    return [];
+};
+
+export const formatTelefonos = (telefonos: any, separator: string = ' - '): string => {
+    const arr = parseTelefonos(telefonos);
+    if (arr.length === 0) return 'No registra';
+    return arr.join(separator);
 };
 
 /**
@@ -103,4 +124,32 @@ export const getSectorEmpresaLabel = (sector: string | null): string => {
 export const formatNumberWithDots = (num: string | number): string => {
     const str = String(num);
     return str.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
+
+export const calcularEdad = (fechaNacimiento: string | null | undefined): number | null => {
+    if (!fechaNacimiento) return null;
+    
+    try {
+        const fechaNac = new Date(fechaNacimiento);
+        // Verificar si la fecha es válida
+        if (isNaN(fechaNac.getTime())) return null;
+        
+        const hoy = new Date();
+        
+        let edad = hoy.getFullYear() - fechaNac.getFullYear();
+        const mesActual = hoy.getMonth();
+        const diaActual = hoy.getDate();
+        const mesNac = fechaNac.getMonth();
+        const diaNac = fechaNac.getDate();
+        
+        // Si aún no ha cumplido años este año
+        if (mesActual < mesNac || (mesActual === mesNac && diaActual < diaNac)) {
+            edad--;
+        }
+        
+        return edad;
+    } catch {
+        return null;
+    }
 };

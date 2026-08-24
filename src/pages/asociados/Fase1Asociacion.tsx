@@ -7,12 +7,14 @@ import {
     formatFechaHora,
     formatNumberWithDots,
     getEstadoBadge,
-    getTipoTrabajadorLabel
+    getTipoTrabajadorLabel,
+    formatTelefonos
 } from '../../utils/helpsVincu';
 import Pagination from '../../components/ui/Pagination/Pagination';
 import { Dropdown } from '../../components/ui/Dropdown/Dropdown';
 import { FiltrosVinculacion } from '../../components/filtros/FiltrosVinculacion';
 import { ModalVerDetalleVinculacion } from '../../components/Modals/ModalVerDetalleVinculacion';
+import { ModalCambiarEstado } from '../../components/Modals/ModalCambiarEstado';
 import { generarPDFVinculacion } from '../../components/pdf/FormatoVinculacionF1PDF';
 import Swal from 'sweetalert2';
 
@@ -45,6 +47,9 @@ const Fase1Asociacion = () => {
     // Modales
     const [modalDetalleOpen, setModalDetalleOpen] = useState(false);
     const [idSolicitanteSeleccionado, setIdSolicitanteSeleccionado] = useState<number | null>(null);
+
+    const [modalCambiarEstadoOpen, setModalCambiarEstadoOpen] = useState(false);
+    const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<any>(null);
 
     // Estadísticas
     const [estadisticas, setEstadisticas] = useState({
@@ -175,9 +180,6 @@ const Fase1Asociacion = () => {
 
             const result = await response.json();
             const datosCompletos = result.data;
-
-            console.log('📄 Datos completos obtenidos:', datosCompletos);
-
             // ✅ Generar PDF con los datos completos
             await generarPDFVinculacion(datosCompletos, 'ASOCIADO');
 
@@ -305,7 +307,7 @@ const Fase1Asociacion = () => {
                                         <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
                                             Correo
                                         </TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-left text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
                                             Telefono
                                         </TableCell>
                                         <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
@@ -314,7 +316,6 @@ const Fase1Asociacion = () => {
                                         <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
                                             Estado
                                         </TableCell>
-
                                         <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
                                             Acciones
                                         </TableCell>
@@ -354,7 +355,7 @@ const Fase1Asociacion = () => {
                                                         {solicitud.correo_electronico}
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3 text-md text-left text-gray-900 dark:text-slate-300">
-                                                        {solicitud.telefonos}
+                                                        {formatTelefonos(solicitud.telefonos, ' - ')}
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3 text-md text-center text-gray-900 dark:text-slate-300">
                                                         {formatFechaHora(solicitud.fecha_creacion)}
@@ -416,7 +417,8 @@ const Fase1Asociacion = () => {
                                                                     </button>
                                                                     <button
                                                                         onClick={() => {
-                                                                            console.log('Cambiar estado:', solicitud);
+                                                                            setSolicitudSeleccionada(solicitud);
+                                                                            setModalCambiarEstadoOpen(true);
                                                                             setOpenDropdown(null);
                                                                         }}
                                                                         className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
@@ -472,6 +474,18 @@ const Fase1Asociacion = () => {
                     setIdSolicitanteSeleccionado(null);
                 }}
                 idSolicitante={idSolicitanteSeleccionado}
+            />
+            {/* Modal de Cambiar Estado */}
+            <ModalCambiarEstado
+                isOpen={modalCambiarEstadoOpen}
+                onClose={() => {
+                    setModalCambiarEstadoOpen(false);
+                    setSolicitudSeleccionada(null);
+                }}
+                solicitud={solicitudSeleccionada}
+                onSuccess={() => {
+                    fetchSolicitudes();
+                }}
             />
         </>
     );

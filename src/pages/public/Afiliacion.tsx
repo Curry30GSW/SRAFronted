@@ -33,6 +33,11 @@ const initialFormData: FormData = {
     direccionCorrespondencia: '',
     ciudadCorrespondencia: '',
     telefonos: [],
+    nivelEducativo: '',
+    estadoCivil: '',
+    tieneVivienda: false,
+    tieneVehiculo: false,
+    placaVehiculo: '',
     whatsapp: '',
     correo: '',
     autorizaCentralesRiesgo: false,
@@ -325,11 +330,11 @@ const AffiliationForm = () => {
             if (result.tipo === "NUEVO") {
                 setValidationPassed(true)
                 setErrorValidacion('')
-                setInfoMensaje('✅ Documento validado - Complete el formulario')
+                setInfoMensaje('Documento validado - Complete el formulario')
 
                 showModalAlert(
                     'success',
-                    '✅ Usuario Nuevo',
+                    'Usuario Nuevo',
                     'Documento validado correctamente. Complete el formulario para continuar.'
                 )
                 setLoading(false)
@@ -468,6 +473,11 @@ const AffiliationForm = () => {
             if (formData.telefonos.length === 0) newErrors.telefonos = 'Al menos un teléfono requerido'
             if (!formData.whatsapp) newErrors.whatsapp = 'WhatsApp requerido'
             if (!formData.correo) newErrors.correo = 'Correo electrónico requerido'
+            if (!formData.nivelEducativo) newErrors.nivelEducativo = 'Nivel educativo requerido'
+            if (!formData.estadoCivil) newErrors.estadoCivil = 'Estado civil requerido'
+            if (formData.tieneVehiculo && !formData.placaVehiculo) {
+                newErrors.placaVehiculo = 'Debe ingresar la placa del vehículo'
+            }
             setErrors(newErrors)
             return Object.keys(newErrors).length === 0
         }
@@ -538,6 +548,11 @@ const AffiliationForm = () => {
             direccion_correspondencia: formData.direccionCorrespondencia,
             ciudad_correspondencia: formData.ciudadCorrespondencia,
             telefonos: formData.telefonos,
+            nivel_educativo: formData.nivelEducativo,
+            estado_civil: formData.estadoCivil,
+            tiene_vivienda: formData.tieneVivienda,
+            tiene_vehiculo: formData.tieneVehiculo,
+            placa_vehiculo: formData.tieneVehiculo ? formData.placaVehiculo : null,
             whatsapp: formData.whatsapp,
             correo_electronico: formData.correo,
             central_riesgos: formData.autorizaCentralesRiesgo,
@@ -769,6 +784,7 @@ const AffiliationForm = () => {
                     onChange={handleCedulaChange}
                     error={errors.cedula}
                     placeholder="Solo números"
+                    disabled={validationPassed}
                     required
                 />
             </div>
@@ -990,55 +1006,188 @@ const AffiliationForm = () => {
     )
 
     // ==================== PASO 4: CONTACTO ====================
-    const renderStep4 = () => (
-        <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                    label="Dirección de Correspondencia"
-                    value={formData.direccionCorrespondencia}
-                    onChange={(e) => setFormData({ ...formData, direccionCorrespondencia: e.target.value })}
-                    error={errors.direccionCorrespondencia}
-                    placeholder="Cra 45 # 23-12"
-                    required
-                />
-                <CitySelect
-                    label="Ciudad de Correspondencia"
-                    value={formData.ciudadCorrespondencia}
-                    onChange={(value) => setFormData({ ...formData, ciudadCorrespondencia: value })}
-                    error={errors.ciudadCorrespondencia}
-                    required
-                />
-            </div>
+    const renderStep4 = () => {
+        // ✅ Si tiene vehículo, mostrar campo de placa
+        const mostrarPlaca = formData.tieneVehiculo;
 
-            <PhoneInput
-                label="Teléfonos de contacto"
-                values={formData.telefonos}
-                onChange={(values) => setFormData({ ...formData, telefonos: values })}
-                error={errors.telefonos}
-                required
-            />
+        return (
+            <div className="space-y-4">
+                {/* Dirección y Ciudad de Correspondencia */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                        label="Dirección de Correspondencia"
+                        value={formData.direccionCorrespondencia}
+                        onChange={(e) => setFormData({ ...formData, direccionCorrespondencia: e.target.value })}
+                        error={errors.direccionCorrespondencia}
+                        placeholder="Cra 45 # 23-12"
+                        required
+                    />
+                    <CitySelect
+                        label="Ciudad de Correspondencia"
+                        value={formData.ciudadCorrespondencia}
+                        onChange={(value) => setFormData({ ...formData, ciudadCorrespondencia: value })}
+                        error={errors.ciudadCorrespondencia}
+                        required
+                    />
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                    label="WhatsApp"
-                    value={formData.whatsapp}
-                    onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
-                    error={errors.whatsapp}
-                    placeholder="3001234567 ó @UsuarioWhatsApp"
-                    required
-                />
-                <Input
-                    label="Correo Electrónico"
-                    type="email"
-                    value={formData.correo}
-                    onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
-                    error={errors.correo}
-                    placeholder="ejemplo@correo.com"
-                    required
-                />
+                {/* Teléfonos */}
+                <div className='grid grid-cols-2'>
+                    <PhoneInput
+                        label="Teléfonos de contacto"
+                        values={formData.telefonos}
+                        onChange={(values) => setFormData({ ...formData, telefonos: values })}
+                        error={errors.telefonos}
+                        required
+                    />
+                </div>
+
+                {/* WhatsApp y Correo */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                        label="WhatsApp"
+                        value={formData.whatsapp}
+                        onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
+                        error={errors.whatsapp}
+                        placeholder="3001234567 ó @UsuarioWhatsApp"
+                        required
+                    />
+                    <Input
+                        label="Correo Electrónico"
+                        type="email"
+                        value={formData.correo}
+                        onChange={(e) => setFormData({ ...formData, correo: e.target.value })}
+                        error={errors.correo}
+                        placeholder="ejemplo@correo.com"
+                        required
+                    />
+                </div>
+
+                {/* ✅ Nivel Educativo y Estado Civil */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">
+                            Nivel Educativo <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            value={formData.nivelEducativo}
+                            onChange={(e) => setFormData({ ...formData, nivelEducativo: e.target.value })}
+                            className="w-full h-9 rounded-lg border border-gray-300 dark:border-orbit-border bg-white dark:bg-orbit-surface2 px-3 text-sm text-gray-900 dark:text-slate-200 focus:border-orbit-primary focus:ring-1 focus:ring-orbit-primary/30 outline-none"
+                        >
+                            <option value="">Seleccione nivel educativo</option>
+                            <option value="PRIMARIA">Primaria</option>
+                            <option value="BACHILLERATO">Bachillerato</option>
+                            <option value="TECNICO">Técnico</option>
+                            <option value="TECNOLOGO">Tecnólogo</option>
+                            <option value="PROFESIONAL">Profesional</option>
+                            <option value="ESPECIALIZACION">Especialización</option>
+                            <option value="MAESTRIA">Maestría</option>
+                            <option value="DOCTORADO">Doctorado</option>
+                        </select>
+                        {errors.nivelEducativo && <p className="text-sm text-red-500 dark:text-orbit-danger mt-1">{errors.nivelEducativo}</p>}
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">
+                            Estado Civil <span className="text-red-500">*</span>
+                        </label>
+                        <select
+                            value={formData.estadoCivil}
+                            onChange={(e) => setFormData({ ...formData, estadoCivil: e.target.value })}
+                            className="w-full h-9 rounded-lg border border-gray-300 dark:border-orbit-border bg-white dark:bg-orbit-surface2 px-3 text-sm text-gray-900 dark:text-slate-200 focus:border-orbit-primary focus:ring-1 focus:ring-orbit-primary/30 outline-none"
+                        >
+                            <option value="">Seleccione estado civil</option>
+                            <option value="SOLTERO">Soltero(a)</option>
+                            <option value="CASADO">Casado(a)</option>
+                            <option value="UNION_LIBRE">Unión Libre</option>
+                            <option value="DIVORCIADO">Divorciado(a)</option>
+                            <option value="VIUDO">Viudo(a)</option>
+                            <option value="SEPARADO">Separado(a)</option>
+                        </select>
+                        {errors.estadoCivil && <p className="text-sm text-red-500 dark:text-orbit-danger mt-1">{errors.estadoCivil}</p>}
+                    </div>
+                </div>
+
+                {/* ✅ Vivienda y Vehículo */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">
+                            ¿Tiene vivienda? <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex gap-6">
+                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
+                                <input
+                                    type="radio"
+                                    value="true"
+                                    checked={formData.tieneVivienda === true}
+                                    onChange={() => setFormData({ ...formData, tieneVivienda: true })}
+                                    className="accent-orbit-primary"
+                                />
+                                Sí
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
+                                <input
+                                    type="radio"
+                                    value="false"
+                                    checked={formData.tieneVivienda === false}
+                                    onChange={() => setFormData({ ...formData, tieneVivienda: false })}
+                                    className="accent-orbit-primary"
+                                />
+                                No
+                            </label>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-800 dark:text-slate-300 mb-1.5">
+                            ¿Tiene vehículo? <span className="text-red-500">*</span>
+                        </label>
+                        <div className="flex gap-6">
+                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
+                                <input
+                                    type="radio"
+                                    value="true"
+                                    checked={formData.tieneVehiculo === true}
+                                    onChange={() => setFormData({ ...formData, tieneVehiculo: true, placaVehiculo: '' })}
+                                    className="accent-orbit-primary"
+                                />
+                                Sí
+                            </label>
+                            <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-200">
+                                <input
+                                    type="radio"
+                                    value="false"
+                                    checked={formData.tieneVehiculo === false}
+                                    onChange={() => setFormData({ ...formData, tieneVehiculo: false, placaVehiculo: '' })}
+                                    className="accent-orbit-primary"
+                                />
+                                No
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ✅ Placa del Vehículo (solo si tiene vehículo) */}
+                {mostrarPlaca && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-1">
+                            <Input
+                                label="Placa del Vehículo"
+                                value={formData.placaVehiculo}
+                                onChange={(e) => setFormData({ ...formData, placaVehiculo: e.target.value.toUpperCase() })}
+                                error={errors.placaVehiculo}
+                                placeholder="Ej: ABC123"
+                                required
+                            />
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                Ingrese la placa del vehículo (Ej: ABC123)
+                            </p>
+                        </div>
+                    </div>
+                )}
             </div>
-        </div>
-    )
+        );
+    };
 
     // ==================== PASO 5: AUTORIZACIONES ====================
     const renderStep5 = () => (
@@ -1182,6 +1331,7 @@ const AffiliationForm = () => {
 
                             {/* Navigation Buttons */}
                             <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-4 sm:mt-6 pt-4 border-t border-gray-200 dark:border-orbit-border">
+
                                 <button
                                     type="button"
                                     onClick={handlePrevStep}
@@ -1191,14 +1341,15 @@ const AffiliationForm = () => {
                                     ← Anterior
                                 </button>
 
+                                <button
+                                    type="button"
+                                    onClick={handleCancel}
+                                    className="w-full bg-red-700 sm:w-auto px-4 py-2 text-white font-medium border-red-300 dark:border-orbit-border rounded-lg hover:bg-red-700/80 transition-colors">
+
+                                    Cancelar Proceso
+                                </button>
+
                                 <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                                    <button
-                                        type="button"
-                                        onClick={handleCancel}
-                                        className="w-full sm:w-auto px-4 py-2 text-sm font-medium text-gray-700 dark:text-slate-300 bg-white dark:bg-orbit-surface2 border border-gray-300 dark:border-orbit-border rounded-lg hover:bg-gray-50 dark:hover:bg-orbit-surface3 transition-colors"
-                                    >
-                                        Cancelar
-                                    </button>
 
                                     {currentStep < STEPS.length ? (
                                         <button

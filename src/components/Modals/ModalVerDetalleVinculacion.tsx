@@ -6,9 +6,8 @@ import {
     formatFecha,
     formatFechaHora,
     getTipoTrabajadorLabel,
-    getSectorEmpresaLabel,
     parseTelefonos,
-    getEstadoBadge
+    calcularEdad
 } from '../../utils/helpsVincu';
 
 import { cn } from '../../utils/cn';
@@ -96,6 +95,62 @@ export const ModalVerDetalleVinculacion: React.FC<ModalVerDetalleVinculacionProp
         </div>
     );
 
+    // ✅ Info Card con badge para valores booleanos
+    const InfoCardBoolean = ({
+        label,
+        value,
+        bgColor = 'bg-gray-50 dark:bg-gray-800/30'
+    }: {
+        label: string;
+        value: boolean | null | undefined;
+        bgColor?: string;
+    }) => (
+        <div className={cn(
+            'flex flex-col p-3 rounded-lg border border-gray-100 dark:border-orbit-border transition-all hover:shadow-sm',
+            bgColor
+        )}>
+            <p className="text-sm font-medium text-gray-800 dark:text-slate-400 uppercase tracking-wider">
+                {label}
+            </p>
+            <span className={cn(
+                'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold mt-1',
+                value ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+            )}>
+                {value ? 'Sí' : 'No'}
+            </span>
+        </div>
+    );
+
+
+    const InfoCardEdad = ({
+        label,
+        value,
+        edad,
+        bgColor = 'bg-gray-50 dark:bg-gray-800/30'
+    }: {
+        label: string;
+        value: string | number | null | undefined;
+        edad: number | null;
+        bgColor?: string;
+    }) => (
+        <div className={cn(
+            'flex flex-col p-3 rounded-lg border border-gray-100 dark:border-orbit-border transition-all hover:shadow-sm',
+            bgColor
+        )}>
+            <p className="text-sm font-medium text-gray-800 dark:text-slate-400 uppercase tracking-wider">
+                {label}
+            </p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mt-1 truncate">
+                {value || 'N/A'}
+                {edad !== null && (
+                    <span className="ml-2 text-sm font-bold text-gray-700 dark:text-gray-400">
+                        ({edad} años)
+                    </span>
+                )}
+            </p>
+        </div>
+    );
+
     // Sección
     const renderSection = (title: string, children: React.ReactNode) => (
         <div className="bg-white dark:bg-orbit-surface2/20 rounded-xl border border-gray-100 dark:border-orbit-border overflow-hidden">
@@ -111,8 +166,6 @@ export const ModalVerDetalleVinculacion: React.FC<ModalVerDetalleVinculacionProp
             </div>
         </div>
     );
-
-
 
     return (
         <Modal
@@ -160,7 +213,6 @@ export const ModalVerDetalleVinculacion: React.FC<ModalVerDetalleVinculacionProp
                                     </div>
                                 </div>
                             </div>
-
 
                             <div className="flex flex-col items-end gap-2">
                                 <span className="text-xl font-bold text-red-500 bg-red-200 px-3 py-1.5 rounded-full border border-red-400">
@@ -223,10 +275,48 @@ export const ModalVerDetalleVinculacion: React.FC<ModalVerDetalleVinculacionProp
                         <>
                             <InfoCard label="Nombres" value={vinculacion.nombres} bgColor="bg-pink-50 dark:bg-pink-900/20" />
                             <InfoCard label="Apellidos" value={vinculacion.apellidos} bgColor="bg-pink-50 dark:bg-pink-900/20" />
-                            <InfoCard label="Fecha de Nacimiento" value={formatFecha(vinculacion.fecha_nacimiento)} bgColor="bg-pink-50 dark:bg-pink-900/20" />
+                            <InfoCardEdad
+                                label="Fecha de Nacimiento"
+                                value={formatFecha(vinculacion.fecha_nacimiento)}
+                                edad={calcularEdad(vinculacion.fecha_nacimiento)}
+                                bgColor="bg-pink-50 dark:bg-pink-900/20"
+                            />
                             <InfoCard label="Lugar de Nacimiento" value={vinculacion.lugar_nacimiento} bgColor="bg-pink-50 dark:bg-pink-900/20" />
                             <InfoCard label="Ciudad de Residencia" value={vinculacion.ciudad_residencia} bgColor="bg-pink-50 dark:bg-pink-900/20" />
                             <InfoCard label="Dirección de Residencia" value={vinculacion.direccion_residencia} bgColor="bg-pink-50 dark:bg-pink-900/20" />
+                        </>
+                    )}
+
+                    {/* ===== INFORMACIÓN ADICIONAL (NUEVOS CAMPOS) ===== */}
+                    {renderSection('Información Adicional',
+                        <>
+                            <InfoCard
+                                label="Nivel Educativo"
+                                value={vinculacion.nivel_educativo}
+                                bgColor="bg-indigo-50 dark:bg-indigo-900/20"
+                            />
+                            <InfoCard
+                                label="Estado Civil"
+                                value={vinculacion.estado_civil}
+                                bgColor="bg-indigo-50 dark:bg-indigo-900/20"
+                            />
+                            <InfoCardBoolean
+                                label="Tiene Vivienda"
+                                value={vinculacion.tiene_vivienda}
+                                bgColor="bg-indigo-50 dark:bg-indigo-900/20"
+                            />
+                            <InfoCardBoolean
+                                label="Tiene Vehículo"
+                                value={vinculacion.tiene_vehiculo}
+                                bgColor="bg-indigo-50 dark:bg-indigo-900/20"
+                            />
+                            {vinculacion.tiene_vehiculo && (
+                                <InfoCard
+                                    label="Placa del Vehículo"
+                                    value={vinculacion.placa_vehiculo}
+                                    bgColor="bg-indigo-50 dark:bg-indigo-900/20"
+                                />
+                            )}
                         </>
                     )}
 

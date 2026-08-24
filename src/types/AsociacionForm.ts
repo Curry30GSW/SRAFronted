@@ -23,6 +23,11 @@ export interface FormData {
   tiempoCargo?: string
   direccionCorrespondencia: string
   ciudadCorrespondencia: string
+  nivelEducativo: string;
+  estadoCivil: string;
+  tieneVivienda: boolean;
+  tieneVehiculo: boolean;
+  placaVehiculo: string;
   
   // Contacto
   telefonos: string[]
