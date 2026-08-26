@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Modal } from '../ui/Modals/index';
-import { FetchDynamic } from '../Api/FetchDynamic';
-import { Vinculacion } from '../../types/Vinculacion';
+import { Modal } from '../../ui/Modals/index';
+import { FetchDynamic } from '../../Api/FetchDynamic';
+import { Vinculacion } from '../../../types/Vinculacion';
 import {
     formatFecha,
     formatFechaHora,
     getTipoTrabajadorLabel,
     parseTelefonos,
     calcularEdad
-} from '../../utils/helpsVincu';
+} from '../../../utils/helpsVincu';
 
-import { cn } from '../../utils/cn';
+import { cn } from '../../../utils/cn';
 
 interface ModalVerDetalleVinculacionProps {
     isOpen: boolean;

@@ -13,10 +13,11 @@ import {
 import Pagination from '../../components/ui/Pagination/Pagination';
 import { Dropdown } from '../../components/ui/Dropdown/Dropdown';
 import { FiltrosVinculacion } from '../../components/filtros/FiltrosVinculacion';
-import { ModalVerDetalleVinculacion } from '../../components/Modals/ModalVerDetalleVinculacion';
-import { ModalCambiarEstado } from '../../components/Modals/ModalCambiarEstado';
+import { ModalVerDetalleVinculacion } from '../../components/Modals/FaseUno/ModalVerDetalleVinculacion';
+import { ModalCambiarEstado } from '../../components/Modals/FaseUno/ModalCambiarEstado';
 import { generarPDFVinculacion } from '../../components/pdf/FormatoVinculacionF1PDF';
 import Swal from 'sweetalert2';
+import { esEstadoFinal } from '@/utils/helpsVincu'
 
 const Fase1Asociacion = () => {
     // Estado principal
@@ -127,12 +128,27 @@ const Fase1Asociacion = () => {
 
             // Calcular estadísticas
             const data = result.data || [];
+
+            const estadosRechazados = [
+                'RECHAZADO',
+                'DESISTIMIENTO',
+                'CAPACIDAD_PAGO_NEGATIVA',
+                'SCORE_BAJO',
+                'EMBARGO',
+                'EMPRESA_PRIVADA'
+            ];
+
+            const estadosEnRevision = [
+                'EN_REVISION',
+                'PENDIENTE_DATACREDITO',
+                'EN_TRAMITE'
+            ];
             setEstadisticas({
                 total: data.length,
                 pendientes: data.filter(s => s.estado === 'PENDIENTE').length,
                 aprobados: data.filter(s => s.estado === 'APROBADO').length,
-                rechazados: data.filter(s => s.estado === 'RECHAZADO').length,
-                enRevision: data.filter(s => s.estado === 'EN_REVISION').length
+                rechazados: data.filter(s => estadosRechazados.includes(s.estado)).length,
+                enRevision: data.filter(s => estadosEnRevision.includes(s.estado)).length
             });
 
         } catch (err) {
@@ -243,7 +259,7 @@ const Fase1Asociacion = () => {
                     {/* Tarjetas de resumen */}
                     <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-3 mb-4">
                         <div className="bg-white dark:bg-orbit-surface2/30 rounded-lg border border-gray-200 dark:border-orbit-border px-3 py-2 sm:px-4 sm:py-3">
-                            <p className="text-[16px] sm:text-lg text-gray-500 dark:text-slate-400">Total</p>
+                            <p className="text-[16px] sm:text-lg text-gray-800 dark:text-slate-200">Total Solicitudes</p>
                             <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100">
                                 {estadisticas.total}
                             </p>
@@ -354,7 +370,7 @@ const Fase1Asociacion = () => {
                                                     <TableCell className="px-4 py-3 text-md text-center text-gray-900 dark:text-slate-300">
                                                         {solicitud.correo_electronico}
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-md text-left text-gray-900 dark:text-slate-300">
+                                                    <TableCell className="px-4 py-3 text-md text-center text-gray-900 dark:text-slate-300">
                                                         {formatTelefonos(solicitud.telefonos, ' - ')}
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3 text-md text-center text-gray-900 dark:text-slate-300">
@@ -389,6 +405,7 @@ const Fase1Asociacion = () => {
                                                                 triggerRef={getDropdownRef(solicitud.id_solicitante.toString())}
                                                             >
                                                                 <div className="py-1">
+                                                                    {/* ✅ Ver detalles - Siempre visible */}
                                                                     <button
                                                                         onClick={() => {
                                                                             setIdSolicitanteSeleccionado(solicitud.id_solicitante);
@@ -403,31 +420,8 @@ const Fase1Asociacion = () => {
                                                                         </svg>
                                                                         Ver detalles
                                                                     </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            console.log('Editar solicitud:', solicitud);
-                                                                            setOpenDropdown(null);
-                                                                        }}
-                                                                        className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
-                                                                    >
-                                                                        <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                                        </svg>
-                                                                        Editar
-                                                                    </button>
-                                                                    <button
-                                                                        onClick={() => {
-                                                                            setSolicitudSeleccionada(solicitud);
-                                                                            setModalCambiarEstadoOpen(true);
-                                                                            setOpenDropdown(null);
-                                                                        }}
-                                                                        className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
-                                                                    >
-                                                                        <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                                        </svg>
-                                                                        Cambiar estado
-                                                                    </button>
+
+                                                                    {/* ✅ Generar PDF - Siempre visible */}
                                                                     <button
                                                                         onClick={() => {
                                                                             handleGenerarPDF(solicitud);
@@ -441,6 +435,41 @@ const Fase1Asociacion = () => {
                                                                         </svg>
                                                                         Generar PDF
                                                                     </button>
+
+                                                                    {/* ✅ Opciones que NO se muestran si es estado final */}
+                                                                    {!esEstadoFinal(solicitud.estado) && (
+                                                                        <>
+                                                                            {/* Editar */}
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    console.log('Editar solicitud:', solicitud);
+                                                                                    setOpenDropdown(null);
+                                                                                }}
+                                                                                className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
+                                                                            >
+                                                                                <svg className="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                                                </svg>
+                                                                                Editar
+                                                                            </button>
+
+                                                                            {/* Cambiar estado */}
+                                                                            <button
+                                                                                onClick={() => {
+                                                                                    setSolicitudSeleccionada(solicitud);
+                                                                                    setModalCambiarEstadoOpen(true);
+                                                                                    setOpenDropdown(null);
+                                                                                }}
+                                                                                className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
+                                                                            >
+                                                                                <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                                                </svg>
+                                                                                Cambiar estado
+                                                                            </button>
+                                                                        </>
+                                                                    )}
+
                                                                 </div>
                                                             </Dropdown>
                                                         </div>

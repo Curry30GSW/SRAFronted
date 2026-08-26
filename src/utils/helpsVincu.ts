@@ -84,13 +84,20 @@ export const formatFechaHora = (fecha: string): string => {
  * Obtener badge de estado
  */
 export const getEstadoBadge = (estado: string) => {
-    const estados: Record<string, { color: string; label: string }> = {
-        'PENDIENTE': { color: 'bg-yellow-100 text-yellow-800 border-yellow-300', label: 'Pendiente' },
-        'APROBADO': { color: 'bg-green-100 text-green-800 border-green-300', label: 'Aprobado' },
-        'RECHAZADO': { color: 'bg-red-100 text-red-800 border-red-300', label: 'Rechazado' },
-        'EN_REVISION': { color: 'bg-blue-100 text-blue-800 border-blue-300', label: 'En Revisión' },
+    const configs: Record<string, { color: string; label: string }> = {
+        'PENDIENTE': { color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300', label: 'Pendiente' },
+        'EN_REVISION': { color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300', label: 'En Revisión' },
+        'APROBADO': { color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', label: 'Aprobado' },
+        'RECHAZADO': { color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300', label: 'Rechazado' },
+        'DESISTIMIENTO': { color: 'bg-red-100 text-red-800 dark:bg-red-700/30 dark:text-red-300', label: 'Desistimiento' },
+        'CAPACIDAD_PAGO_NEGATIVA': { color: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300', label: 'Capacidad de pago negativa' },
+        'SCORE_BAJO': { color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300', label: 'Score bajo' },
+        'EMBARGO': { color: 'bg-rose-100 text-rose-800 dark:bg-rose-900/30 dark:text-rose-300', label: 'Embargo' },
+        'EMPRESA_PRIVADA': { color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300', label: 'Empresa privada' },
+        'PENDIENTE_DATACREDITO': { color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300', label: 'Pendiente Datacrédito' },
+        'EN_TRAMITE': { color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300', label: 'En trámite - Fase 2' },
     };
-    return estados[estado] || { color: 'bg-gray-100 text-gray-800 border-gray-300', label: estado };
+    return configs[estado] || configs['PENDIENTE'];
 };
 
 /**
@@ -152,4 +159,38 @@ export const calcularEdad = (fechaNacimiento: string | null | undefined): number
     } catch {
         return null;
     }
+};
+
+
+export const getEstadoLabel = (estado: string): string => {
+
+    const configs: Record<string, string> = {
+        'PENDIENTE': 'PENDIENTE',
+        'EN_REVISION': 'EN REVISIÓN',
+        'APROBADO': 'APROBADO',
+        'RECHAZADO': 'RECHAZADO',
+        'DESISTIMIENTO': 'DESISTIMIENTO',
+        'CAPACIDAD_PAGO_NEGATIVA': 'CAPACIDAD DE PAGO NEGATIVA',
+        'SCORE_BAJO': 'SCORE BAJO',
+        'EMBARGO': 'EMBARGO',
+        'EMPRESA_PRIVADA': 'EMPRESA PRIVADA',
+        'PENDIENTE_DATACREDITO': 'PENDIENTE CONSULTA DATACRÉDITO',
+        'EN_TRAMITE': 'EN TRÁMITE - FASE 2',
+    };
+
+    return configs[estado] || estado;
+};
+
+// ✅ Verificar si el estado es final (no permite cambios)
+export const esEstadoFinal = (estado: string): boolean => {
+    const estadosFinales = [
+        'DESISTIMIENTO',
+        'CAPACIDAD_PAGO_NEGATIVA',
+        'EMBARGO',
+        'EMPRESA_PRIVADA',
+        'SCORE_BAJO',
+        'RECHAZADO',
+        'APROBADO'
+    ];
+    return estadosFinales.includes(estado);
 };

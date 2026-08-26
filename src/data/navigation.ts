@@ -1,11 +1,6 @@
 import {
   LayoutDashboard,
-  MessageSquare,
-  Users,
-  CreditCard,
   Puzzle,
-  Settings,
-  HelpCircle,
   BarChart3,
 } from 'lucide-react'
 import type { NavSection } from '@/types'
@@ -20,7 +15,7 @@ export const navigation: NavSection[] = [
         icon: LayoutDashboard,
         children: [
           { label: 'Fase 1', href: '/asociaciones/F1' },
-          { label: 'Fase 2', href: '/asociaciones/fase2' },
+          { label: 'Fase 2', href: '/asociaciones/F2' },
           { label: 'Fase 3', href: '/crm/contacts' },
         ],
       }, 
