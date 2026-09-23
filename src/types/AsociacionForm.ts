@@ -38,6 +38,8 @@ export interface FormData {
   autorizaCentralesRiesgo: boolean
   aceptaTratamientoDatos: boolean
   autorizaAperturaCuenta: boolean
+
+  agencia?: string
 }
 
 export interface FormErrors {

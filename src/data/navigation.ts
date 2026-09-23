@@ -2,6 +2,7 @@ import {
   LayoutDashboard,
   Puzzle,
   BarChart3,
+  User,
 } from 'lucide-react'
 import type { NavSection } from '@/types'
 
@@ -19,7 +20,8 @@ export const navigation: NavSection[] = [
           { label: 'Fase 3', href: '/crm/contacts' },
         ],
       }, 
-      { label: 'Links', icon: Puzzle, href: '/links' },   
+      { label: 'Links', icon: Puzzle, href: '/links' }, 
+      { label : 'Usuarios', icon: User, href: '/usuarios'}  
     ],
   },
   // {

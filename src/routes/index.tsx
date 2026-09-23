@@ -24,6 +24,7 @@ const SettingsPage = lazy(() => import('@/pages/settings/SettingsPage'));
 const HelpPage = lazy(() => import('@/pages/help/HelpPage'));
 const ComponentsPage = lazy(() => import('@/pages/components/ComponentsPage'));
 
+const Usuarios = lazy(() => import('@/pages/usuarios/Usuarios'));
 const SegmentacionSalarial = lazy(() => import('@/pages/asociados/SegmentacionSalarial'));
 const Fase1Asociacion = lazy(() => import('@/pages/asociados/Fase1Asociacion'));
 const Fase2Asociacion = lazy(() => import('@/pages/asociados/Fase2Asociacion'));
@@ -57,6 +58,7 @@ export const AppRoutes = () => {
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/help" element={<HelpPage />} />
                         <Route path="/components" element={<ComponentsPage />} />
+                        <Route path='/usuarios' element={<Usuarios />} />
                     </Route>
                 </Route>
 

@@ -14,6 +14,7 @@ import Pagination from '../../components/ui/Pagination/Pagination';
 import { Dropdown } from '../../components/ui/Dropdown/Dropdown';
 import { FiltrosVinculacion } from '../../components/filtros/FiltrosVinculacion';
 import { ModalVerDetalleVinculacion } from '../../components/Modals/FaseUno/ModalVerDetalleVinculacion';
+import { ModalEditarF1 } from '@/components/Modals/FaseUno/ModalEditarF1';
 import { ModalCambiarEstado } from '../../components/Modals/FaseUno/ModalCambiarEstado';
 import { generarPDFVinculacion } from '../../components/pdf/FormatoVinculacionF1PDF';
 import Swal from 'sweetalert2';
@@ -51,6 +52,9 @@ const Fase1Asociacion = () => {
 
     const [modalCambiarEstadoOpen, setModalCambiarEstadoOpen] = useState(false);
     const [solicitudSeleccionada, setSolicitudSeleccionada] = useState<any>(null);
+
+    const [editar, setEditar] = useState<Vinculacion | null>(null);
+    const [modalEditar, setModalEditar] = useState(false);
 
     // Estadísticas
     const [estadisticas, setEstadisticas] = useState({
@@ -215,6 +219,17 @@ const Fase1Asociacion = () => {
             });
         }
     };
+
+    const handleEditar = (solicitud: Vinculacion) => {
+        setModalEditar(true)
+        setEditar(solicitud)
+        setOpenDropdown(null)
+
+    }
+
+    const handleEditarSuccess = () => {
+        fetchSolicitudes()
+    }
 
     if (loading) {
         return (
@@ -442,8 +457,7 @@ const Fase1Asociacion = () => {
                                                                             {/* Editar */}
                                                                             <button
                                                                                 onClick={() => {
-                                                                                    console.log('Editar solicitud:', solicitud);
-                                                                                    setOpenDropdown(null);
+                                                                                    handleEditar(solicitud)
                                                                                 }}
                                                                                 className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
                                                                             >
@@ -515,6 +529,15 @@ const Fase1Asociacion = () => {
                 onSuccess={() => {
                     fetchSolicitudes();
                 }}
+            />
+            <ModalEditarF1
+                isOpen={modalEditar}
+                onClose={() => {
+                    setModalEditar(false)
+                    setEditar(null)
+                }}
+                solicitud={editar}
+                onSuccess={handleEditarSuccess}
             />
         </>
     );

@@ -221,6 +221,7 @@ const COLOMBIAN_CITIES = [
     'Palestina (Huila)',
     'Isnos',
     'San José de Isnos',
+    'Vijes',
 
 ].sort()
 

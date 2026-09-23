@@ -2,15 +2,17 @@ import { useState, useRef, useEffect } from 'react'
 import { Input } from '../../components/ui/Input'
 import { useParams } from 'react-router-dom'
 import { CitySelect } from '../../components/forms/CitySelect'
+import { AgencySelect } from '../../components/forms/AgencySelect'
 import { DateInput } from '../../components/forms/DateInput'
 import { PhoneInput } from '../../components/forms/PhoneInput'
 import { FormData, FormErrors } from '../../types/AsociacionForm'
 import { cn } from '../../utils/cn'
 import coopserpLogo from '../../../public/images/logo/coopserp.png';
-import { FetchDynamic } from '../../components/Api/FetchDynamic'
-import { ModalSolicitudEnviada } from '../../components/Modals/ModalSolicitudEnviada'
-import { ModalFase1 } from '../../components/Modals/ModalFase1'
-import { ModalConfirmacion } from '../../components/Modals/ModalConfirmacion'
+import { FetchPublic } from '../../components/Api/FetchPublic';
+import { ModalSolicitudEnviada } from '../../components/Modals/ModalSolicitudEnviada';
+import { ModalFase1 } from '../../components/Modals/FaseUno/ModalFase1';
+import { ModalConfirmacion } from '../../components/Modals/ModalConfirmacion';
+import { ModalResumenDatos } from '@/components/Modals/FaseUno/ModalResumenDatos';
 
 const initialFormData: FormData = {
     tipoDocumento: '',
@@ -43,6 +45,7 @@ const initialFormData: FormData = {
     autorizaCentralesRiesgo: false,
     aceptaTratamientoDatos: false,
     autorizaAperturaCuenta: false,
+    agencia: '',
 }
 
 const mapTipoTrabajador = (value: FormData['tipoTrabajador']) => {
@@ -68,8 +71,14 @@ const STEPS = [
 const AffiliationForm = () => {
     const { codigo } = useParams<{ codigo?: string }>()
     const codigoLink = codigo || null
+    const esVinculacionEspontanea = !codigoLink
     const [linkValido, setLinkValido] = useState<boolean | null>(null)
-    const [usuarioAfiliador, setUsuarioAfiliador] = useState<string>('')
+    const [usuarioAfiliador, setUsuarioAfiliador] = useState<{
+        id: string;
+        nombre: string;
+        usuario: string;
+
+    } | null>(null)
     const [validandoLink, setValidandoLink] = useState<boolean>(!!codigo)
 
     const cedulaRef = useRef<HTMLInputElement>(null)
@@ -98,7 +107,8 @@ const AffiliationForm = () => {
 
     const [confirmData, setConfirmData] = useState<any>(null);
 
-    const [showConfirmModal, setShowConfirmModal] = useState(false)
+    const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [ShowResuModal, setShowResuModal] = useState(false);
 
     useEffect(() => {
         const validarLink = async () => {
@@ -107,15 +117,25 @@ const AffiliationForm = () => {
                 setLinkValido(true)
                 return
             }
-
             try {
-                const response = await FetchDynamic(`/links/validar/${codigo}`)
+                const response = await FetchPublic(`/links/validar/${codigo}`)
                 const result = await response.json()
 
                 if (result.success) {
                     setLinkValido(true)
-                    setUsuarioAfiliador(result.data.usuario)
-                } else {
+
+                    const idUsuario = result.data.id_usuario || result.data.id || null;
+
+                    setUsuarioAfiliador({
+                        id: idUsuario,
+                        nombre: result.data.nombre_usuario || result.data.nombre,
+                        usuario: result.data.username || result.data.usuario,
+
+                    })
+
+                }
+
+                else {
                     setLinkValido(false)
                 }
             } catch (error) {
@@ -128,7 +148,6 @@ const AffiliationForm = () => {
 
         validarLink()
     }, [codigo])
-
     useEffect(() => {
         const updateDateTime = () => {
             const now = new Date()
@@ -177,7 +196,7 @@ const AffiliationForm = () => {
                         Contacta con el usuario que te envió el link.
                     </p>
                     <button
-                        onClick={() => window.location.href = '/afiliacion'}
+                        onClick={() => window.location.href = '/sra/afiliacion'}
                         className="mt-4 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                     >
                         Ir a vinculación espontánea
@@ -251,7 +270,7 @@ const AffiliationForm = () => {
         setValidationPassed(false)
 
         try {
-            const response = await FetchDynamic(`/vinculacion/validar/${formData.cedula}`)
+            const response = await FetchPublic(`/vinculacion/validar/${formData.cedula}`)
             const result = await response.json()
 
             if (!result.success) {
@@ -483,7 +502,12 @@ const AffiliationForm = () => {
         }
 
         if (currentStep === 5) {
-            return true
+            const newErrors: FormErrors = {}
+            if (esVinculacionEspontanea && !formData.agencia) {
+                newErrors.agencia = 'Debe seleccionar una agencia'
+            }
+            setErrors(newErrors)
+            return Object.keys(newErrors).length === 0
         }
 
         return true
@@ -527,41 +551,48 @@ const AffiliationForm = () => {
     }
 
     const buildVinculacionPayload = (formData: FormData) => {
+
         const payload: any = {
-            tipo_documento: formData.tipoDocumento,
+            tipo_documento: formData.tipoDocumento?.toUpperCase() || '',
             numero_documento: formData.cedula,
-            lugar_expedicion: formData.lugarExpedicion,
+            lugar_expedicion: formData.lugarExpedicion?.toUpperCase() || '',
             fecha_expedicion: formData.fechaExpedicion,
-            nombres: formData.nombres,
-            apellidos: formData.apellidos,
+            nombres: formData.nombres?.toUpperCase() || '',
+            apellidos: formData.apellidos?.toUpperCase() || '',
             fecha_nacimiento: formData.fechaNacimiento,
-            lugar_nacimiento: formData.lugarNacimiento,
-            lugar_procedencia: formData.lugarEscritura,
-            ciudad_residencia: formData.ciudadResidencia,
-            direccion_residencia: formData.direccionResidencia,
+            lugar_nacimiento: formData.lugarNacimiento?.toUpperCase() || '',
+            lugar_procedencia: formData.lugarEscritura?.toUpperCase() || '',
+            ciudad_residencia: formData.ciudadResidencia?.toUpperCase() || '',
+            direccion_residencia: formData.direccionResidencia?.toUpperCase() || '',
             tipo_trabajador: mapTipoTrabajador(formData.tipoTrabajador),
-            pagaduria: formData.pagaduria || null,
-            empresa: formData.empresa || null,
+            pagaduria: formData.pagaduria?.toUpperCase() || null,
+            empresa: formData.empresa?.toUpperCase() || null,
             sector_empresa: mapSectorEmpresa(formData.sectorEmpresa),
-            cargo: formData.cargo || null,
-            tiempo_cargo: formData.tiempoCargo || null,
-            direccion_correspondencia: formData.direccionCorrespondencia,
-            ciudad_correspondencia: formData.ciudadCorrespondencia,
+            cargo: formData.cargo?.toUpperCase() || null,
+            tiempo_cargo: formData.tiempoCargo?.toUpperCase() || null,
+            direccion_correspondencia: formData.direccionCorrespondencia?.toUpperCase() || '',
+            ciudad_correspondencia: formData.ciudadCorrespondencia?.toUpperCase() || '',
             telefonos: formData.telefonos,
-            nivel_educativo: formData.nivelEducativo,
-            estado_civil: formData.estadoCivil,
+            nivel_educativo: formData.nivelEducativo?.toUpperCase() || '',
+            estado_civil: formData.estadoCivil?.toUpperCase() || '',
             tiene_vivienda: formData.tieneVivienda,
             tiene_vehiculo: formData.tieneVehiculo,
-            placa_vehiculo: formData.tieneVehiculo ? formData.placaVehiculo : null,
+            placa_vehiculo: formData.tieneVehiculo ? formData.placaVehiculo?.toUpperCase() : null,
             whatsapp: formData.whatsapp,
-            correo_electronico: formData.correo,
+            correo_electronico: formData.correo?.toLowerCase() || '',
             central_riesgos: formData.autorizaCentralesRiesgo,
             tratamiento_datos: formData.aceptaTratamientoDatos,
-            apertura_coopserp: formData.autorizaAperturaCuenta
+            apertura_coopserp: formData.autorizaAperturaCuenta,
+            centro_costo: formData.agencia ? Number(formData.agencia) : null,
+
         }
 
-        if (codigoLink) {
+        if (codigoLink && usuarioAfiliador) {
             payload.codigo_link = codigoLink
+            payload.id_usuario_afiliador = usuarioAfiliador.id
+            payload.nombre = usuarioAfiliador.nombre
+            payload.centro_costo = null
+
         }
 
         return payload
@@ -586,58 +617,85 @@ const AffiliationForm = () => {
         e.preventDefault()
         setSubmitError(null)
 
-        // Un submit accidental nunca debe validar autorizaciones antes del paso 5.
-        if (currentStep !== STEPS.length) {
-            handleNextStep()
+        // Validar documento
+        if (!validationPassed) {
+            showModalAlert(
+                'warning',
+                '⚠️ Documento no validado',
+                'Debe validar el documento en el paso 1 antes de continuar.'
+            )
             return
         }
 
+        // Validar autorizaciones (paso 5)
         if (!validateAutorizaciones()) return
+
 
         const currentStepBackup = currentStep
 
+        // Validar paso 2
         setCurrentStep(2)
         if (!validateCurrentStep()) {
             setCurrentStep(currentStepBackup)
             return
         }
 
+        // Validar paso 3
         setCurrentStep(3)
         if (!validateCurrentStep()) {
             setCurrentStep(currentStepBackup)
             return
         }
 
+        // Validar paso 4
         setCurrentStep(4)
         if (!validateCurrentStep()) {
             setCurrentStep(currentStepBackup)
             return
         }
 
+        // Restaurar paso actual
         setCurrentStep(currentStepBackup)
 
-        setIsSubmitting(true)
+        setShowResuModal(true)
 
+    }
+
+    const handleConfirmSend = async () => {
+        setIsSubmitting(true)
         try {
             const payload = buildVinculacionPayload(formData)
 
-
-            let url = '/vinculacion'
-            if (codigoLink) {
-                url += `?codigo_link=${codigoLink}`
-            }
-
-            const response = await FetchDynamic(url, {
+            const response = await FetchPublic('/vinculacion', {
                 method: 'POST',
                 body: JSON.stringify(payload)
             })
 
             const result = await response.json()
 
+
+            const esProcesoDuplicado =
+                !response.ok &&
+                typeof result?.message === 'string' &&
+                result.message.toLowerCase().includes('ya existe un proceso activo')
+
+            if (esProcesoDuplicado) {
+
+                setShowResuModal(false)
+
+                showModalAlert(
+                    'warning',
+                    'Ya tienes una solicitud en trámite',
+                    'Ya tienes una solicitud de vinculación en proceso. Nuestro equipo se encuentra validando tu información y se pondrá en contacto contigo pronto.',
+                )
+                return
+            }
+
             if (!response.ok || !result.success) {
                 throw new Error(result.message || 'No se pudo enviar la solicitud')
             }
 
+            setShowResuModal(false)
             setFormData(initialFormData)
             setErrors({})
             setValidationPassed(false)
@@ -650,6 +708,7 @@ const AffiliationForm = () => {
                     ? err.message
                     : 'Error desconocido al enviar el formulario'
             )
+            setShowResuModal(false)
         } finally {
             setIsSubmitting(false)
         }
@@ -1192,6 +1251,33 @@ const AffiliationForm = () => {
     // ==================== PASO 5: AUTORIZACIONES ====================
     const renderStep5 = () => (
         <div className="space-y-4">
+            {esVinculacionEspontanea && (
+                <div className="mt-6 pt-6 border-t border-gray-200 dark:border-orbit-border">
+                    <div className="mb-3">
+                        <h4 className="text-MD font-semibold text-gray-900 dark:text-slate-100 flex items-center gap-2">
+                            <svg className="w-5 h-5 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                    d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                    d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            Agencia de vinculación
+                        </h4>
+                        <p className="text-sm text-gray-700 dark:text-slate-400 mt-1">
+                            Seleccione la agencia a la que desea pertenecer. Esta información es importante para
+                            asignarle un asesor y gestionar su proceso. <span className="text-red-500">*</span>
+                        </p>
+                    </div>
+
+                    <AgencySelect
+                        label=""
+                        value={formData.agencia || ''}
+                        onChange={(codigo) => setFormData({ ...formData, agencia: codigo })}
+                        error={errors.agencia}
+                        required
+                    />
+                </div>
+            )}
             <div className="space-y-3">
                 <div className="flex items-start gap-3 p-4 bg-blue-50 dark:bg-blue-500/5 rounded-lg border border-blue-200 dark:border-blue-500/10">
                     <input
@@ -1251,6 +1337,7 @@ const AffiliationForm = () => {
                     <p className="text-sm text-red-500 dark:text-orbit-danger ml-7">{errors.autorizaAperturaCuenta}</p>
                 )}
             </div>
+
         </div>
     )
 
@@ -1306,7 +1393,7 @@ const AffiliationForm = () => {
                         {codigoLink && usuarioAfiliador && (
                             <div className="mt-2 text-center bg-green-50 dark:bg-green-900/20 py-1 px-4 rounded-lg border border-green-200 dark:border-green-700/50">
                                 <p className="text-sm text-green-700 dark:text-green-300">
-                                    Vinculación a través del link de: <span className="font-bold">{usuarioAfiliador}</span>
+                                    Vinculación a través del link de: <span className="font-bold">{usuarioAfiliador.nombre}</span>
                                 </p>
                             </div>
                         )}
@@ -1407,6 +1494,14 @@ const AffiliationForm = () => {
                 data={modalData}
                 onConfirm={modalOnConfirm}
 
+            />
+
+            <ModalResumenDatos
+                onConfirm={handleConfirmSend}
+                isOpen={ShowResuModal}
+                onClose={() => setShowResuModal(false)}
+                datos={formData}
+                isLoading={isSubmitting}
             />
 
             <ModalSolicitudEnviada

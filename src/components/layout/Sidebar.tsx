@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, ChevronRight, LogOut, User, Power, Settings } from 'lucide-react'
+import { ChevronDown, ChevronRight, Power } from 'lucide-react'
 import { cn } from '@/utils/cn'
 import { navigation } from '@/data/navigation'
 import { useSidebar } from '@/hooks/useSidebar'
@@ -31,7 +31,7 @@ function OrbitLogo({ collapsed }: { collapsed: boolean }) {
             className="overflow-hidden"
           >
             <span className="text-slate-100 font-semibold text-lg tracking-tight whitespace-nowrap">
-              Orbit
+              COOPSERP
             </span>
           </motion.div>
         )}

@@ -6,6 +6,7 @@ import { FetchDynamic } from '../../components/Api/FetchDynamic'
 const LinksAfiliacionPage = () => {
     const { user, nombre } = useAuth()
     const [usuarioId, setUsuarioId] = useState<number | null>(null)
+    const [usuarioNombre, setUsuarioNombre] = useState<number | null>(null)
     const [loading, setLoading] = useState(true)
 
     // ✅ Obtener el ID del usuario autenticado
@@ -16,6 +17,7 @@ const LinksAfiliacionPage = () => {
                 if (response.ok) {
                     const data = await response.json()
                     setUsuarioId(data.data?.id_usuario || null)
+                    setUsuarioNombre(data.data?.nombre || '')
                 }
             } catch (error) {
                 console.error('Error obteniendo usuario:', error)

@@ -19,6 +19,9 @@ interface LinkAfiliacion {
     activo: number
     uso_maximo: number
     usos_actuales: number
+    nombre_usuario: string
+    username: string
+    rol_usuario: string
 }
 
 interface VinculacionStats {
@@ -132,26 +135,50 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
 
             const result = await response.json()
 
-            if (result.success) {
-                const urlCompleta = `${window.location.origin}${basePath}/afiliacion/${result.data.codigo}`
-
-                await navigator.clipboard.writeText(urlCompleta)
-
+            if (response.status === 400) {
                 Swal.fire({
-                    icon: 'success',
-                    title: 'Link generado y copiado',
+                    icon: 'info',
+                    title: 'Tienes un link generado',
                     html: `
-                        <p class="text-sm">El link se ha copiado al portapapeles</p>
-                        <p class="text-xs text-gray-500 mt-2 break-all">${urlCompleta}</p>
-                    `,
+                        <p class="text-sm">El usuario solo puede tener 1 link!</p>
+                       `,
                     timer: 3000,
                     showConfirmButton: false
                 })
-
-                cargarLinks()
-            } else {
-                throw new Error(result.message || 'Error al generar el link')
+                return;
             }
+
+            if (!response.ok || !result.success) {
+
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    html: `
+                        <p class="text-sm">Se presento un error en el proceso del link</p>
+                       `,
+                    timer: 3000,
+                    showConfirmButton: false
+                })
+                return;
+            }
+
+            const urlCompleta = `${window.location.origin}${basePath}/afiliacion/${result.data.codigo}`
+
+            await navigator.clipboard.writeText(urlCompleta)
+
+            Swal.fire({
+                icon: 'success',
+                title: 'Link generado y copiado',
+                html: `
+                        <p class="text-sm">El link se ha copiado al portapapeles</p>
+                        <p class="text-xs text-gray-500 mt-2 break-all">${urlCompleta}</p>
+                    `,
+                timer: 3000,
+                showConfirmButton: false
+            })
+
+            cargarLinks()
+
         } catch (error) {
             console.error('Error:', error)
             Swal.fire({
@@ -265,27 +292,27 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
         if (totalPages <= 1) return null
 
         return (
-            <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <span className="text-xs text-gray-400 dark:text-gray-500">
+            <div className="flex items-center justify-between mt-3 pt-2 border-t border-gray-200 dark:border-orbit-border">
+                <span className="text-xs text-gray-400 dark:text-slate-500">
                     Mostrando {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)} - {Math.min(currentPage * itemsPerPage, totalItems)} de {totalItems}
                 </span>
                 <div className="flex items-center gap-1">
                     <button
                         onClick={() => onPageChange(Math.max(1, currentPage - 1))}
                         disabled={currentPage === 1}
-                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-orbit-surface2/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                        <ChevronLeft className="w-4 h-4 text-gray-500" />
+                        <ChevronLeft className="w-4 h-4 text-gray-500 dark:text-slate-400" />
                     </button>
-                    <span className="text-xs font-medium text-gray-600 dark:text-gray-300 px-2">
+                    <span className="text-xs font-medium text-gray-600 dark:text-slate-300 px-2">
                         {currentPage} / {totalPages}
                     </span>
                     <button
                         onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
                         disabled={currentPage === totalPages}
-                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        className="p-1 rounded hover:bg-gray-100 dark:hover:bg-orbit-surface2/50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                        <ChevronRight className="w-4 h-4 text-gray-500" />
+                        <ChevronRight className="w-4 h-4 text-gray-500 dark:text-slate-400" />
                     </button>
                 </div>
             </div>
@@ -293,25 +320,25 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
     }
 
     return (
-        <div className="w-full h-full bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm overflow-hidden flex flex-col">
+        <div className="w-full h-full bg-white dark:bg-orbit-surface2/30 rounded-xl border border-gray-200 dark:border-orbit-border shadow-sm overflow-hidden flex flex-col">
             {/* Header - Fijo */}
-            <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
+            <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 dark:border-orbit-border bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">
                             Gestión de Links de Afiliación
                         </h3>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                        <p className="text-sm text-gray-500 dark:text-slate-400">
                             Genera links y monitorea tus afiliaciones
                         </p>
                     </div>
                     <button
                         onClick={cargarLinks}
                         disabled={loading}
-                        className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-gray-700/50 transition-colors"
+                        className="p-2 rounded-lg hover:bg-white/50 dark:hover:bg-orbit-surface2/50 transition-colors"
                     >
                         <RefreshCw className={cn(
-                            "w-4 h-4 text-gray-500",
+                            "w-4 h-4 text-gray-500 dark:text-slate-400",
                             loading && "animate-spin"
                         )} />
                     </button>
@@ -322,9 +349,9 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
             <div className="flex-1 overflow-y-auto p-6">
                 {/* Estadísticas - Grid completo */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
-                    <div className="bg-white dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-700 p-4 text-center hover:shadow-md transition-shadow">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total</p>
-                        <p className="text-2xl font-bold text-gray-900 dark:text-white">{estadisticas.total}</p>
+                    <div className="bg-white dark:bg-orbit-surface2/30 rounded-lg border border-gray-200 dark:border-orbit-border p-4 text-center hover:shadow-md transition-shadow">
+                        <p className="text-xs text-gray-500 dark:text-slate-400 uppercase tracking-wider">Total</p>
+                        <p className="text-2xl font-bold text-gray-900 dark:text-slate-100">{estadisticas.total}</p>
                     </div>
                     <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-700 p-4 text-center hover:shadow-md transition-shadow">
                         <p className="text-xs text-yellow-600 dark:text-yellow-400 uppercase tracking-wider">Pendientes</p>
@@ -345,13 +372,13 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
                 </div>
 
                 {/* Generar Link */}
-                <div className="mb-6 p-4 bg-gray-50 dark:bg-gray-700/20 rounded-lg border border-gray-200 dark:border-gray-700">
+                <div className="mb-6 p-4 bg-gray-50 dark:bg-orbit-surface2/50 rounded-lg border border-gray-200 dark:border-orbit-border">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                         <div>
-                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                            <p className="text-sm font-medium text-gray-700 dark:text-slate-300">
                                 Generar nuevo link de afiliación
                             </p>
-                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                            <p className="text-xs text-gray-400 dark:text-slate-500">
                                 El link se copiará automáticamente al portapapeles
                             </p>
                         </div>
@@ -369,7 +396,7 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
                 {/* Lista de Links con paginación */}
                 <div className="mb-6">
                     <div className="flex items-center justify-between mb-3">
-                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-slate-300">
                             Mis Links Generados
                         </h4>
                         <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">
@@ -381,8 +408,8 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
                             <div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
                         </div>
                     ) : links.length === 0 ? (
-                        <div className="text-center py-8 bg-gray-50 dark:bg-gray-700/20 rounded-lg border border-gray-200 dark:border-gray-700">
-                            <p className="text-sm text-gray-400 dark:text-gray-500">
+                        <div className="text-center py-8 bg-gray-50 dark:bg-orbit-surface2/50 rounded-lg border border-gray-200 dark:border-orbit-border">
+                            <p className="text-sm text-gray-400 dark:text-slate-500">
                                 No has generado ningún link aún
                             </p>
                         </div>
@@ -392,30 +419,30 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
                                 {getPaginatedLinks().map((link) => (
                                     <div
                                         key={link.id_link}
-                                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors border border-gray-200 dark:border-gray-700"
+                                        className="flex items-center justify-between p-3 bg-gray-50 dark:bg-orbit-surface2/30 rounded-lg hover:bg-gray-100 dark:hover:bg-orbit-surface2/50 transition-colors border border-gray-200 dark:border-orbit-border"
                                     >
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-3 flex-wrap">
-                                                <span className="text-xs font-mono text-gray-600 dark:text-gray-300 truncate">
+                                                <span className="text-xs font-mono text-gray-600 dark:text-slate-300 truncate">
                                                     {link.codigo}
                                                 </span>
-                                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                                                <span className="text-xs text-gray-400 dark:text-slate-500">
                                                     Usos: {link.usos_actuales}
                                                 </span>
                                                 <span className={`text-xs font-medium ${link.activo ? 'text-green-500' : 'text-red-500'}`}>
                                                     {link.activo ? 'Activo' : 'Inactivo'}
                                                 </span>
-                                                <span className="text-xs text-gray-400 dark:text-gray-500">
+                                                <span className="text-xs text-gray-400 dark:text-slate-500">
                                                     {formatearFecha(link.fecha_creacion)}
                                                 </span>
                                             </div>
                                         </div>
                                         <button
                                             onClick={() => copiarLink(link.codigo)}
-                                            className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-600 rounded transition-colors ml-2 flex-shrink-0"
+                                            className="p-1.5 hover:bg-gray-200 dark:hover:bg-orbit-surface2/50 rounded transition-colors ml-2 flex-shrink-0"
                                             title="Copiar link"
                                         >
-                                            <Copy className="w-4 h-4 text-gray-500" />
+                                            <Copy className="w-4 h-4 text-gray-500 dark:text-slate-400" />
                                         </button>
                                     </div>
                                 ))}
@@ -456,8 +483,8 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
                                     className={cn(
                                         'px-3 py-1 text-xs rounded-full transition-colors',
                                         filtroEstado === 'todos'
-                                            ? 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'
-                                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                            ? 'bg-gray-200 dark:bg-orbit-surface2/50 text-gray-800 dark:text-slate-200'
+                                            : 'bg-gray-100 dark:bg-orbit-surface2/30 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-orbit-surface2/50'
                                     )}
                                 >
                                     Todos
@@ -475,7 +502,7 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
                                                 'px-3 py-1 text-xs rounded-full transition-colors',
                                                 filtroEstado === estado
                                                     ? badge.color
-                                                    : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700'
+                                                    : 'bg-gray-100 dark:bg-orbit-surface2/30 text-gray-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-orbit-surface2/50'
                                             )}
                                         >
                                             {badge.label}
@@ -489,8 +516,8 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
                                     <div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
                                 </div>
                             ) : vinculosFiltrados.length === 0 ? (
-                                <div className="text-center py-8 bg-gray-50 dark:bg-gray-700/20 rounded-lg border border-gray-200 dark:border-gray-700">
-                                    <p className="text-sm text-gray-400 dark:text-gray-500">
+                                <div className="text-center py-8 bg-gray-50 dark:bg-orbit-surface2/50 rounded-lg border border-gray-200 dark:border-orbit-border">
+                                    <p className="text-sm text-gray-400 dark:text-slate-500">
                                         No hay vinculaciones con este estado
                                     </p>
                                 </div>
@@ -502,14 +529,14 @@ export const GestionLinksAfiliacion: React.FC<GestionLinksAfiliacionProps> = ({
                                             return (
                                                 <div
                                                     key={v.id_solicitante}
-                                                    className="p-3 bg-gray-50 dark:bg-gray-700/30 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700/50 transition-colors"
+                                                    className="p-3 bg-gray-50 dark:bg-orbit-surface2/30 rounded-lg border border-gray-200 dark:border-orbit-border hover:bg-gray-100 dark:hover:bg-orbit-surface2/50 transition-colors"
                                                 >
                                                     <div className="flex items-start justify-between gap-2">
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                                                            <p className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">
                                                                 {v.nombres} {v.apellidos}
                                                             </p>
-                                                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                                                            <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 dark:text-slate-400 flex-wrap">
                                                                 <span>CC: {v.numero_documento}</span>
                                                                 <span>{v.correo_electronico}</span>
                                                                 <span>{formatearFecha(v.fecha_creacion)}</span>

@@ -1,7 +1,7 @@
 // components/Modals/ModalFase1.tsx
 
 import React from 'react'
-import { Modal } from '../ui/Modals'
+import { Modal } from '../../ui/Modals'
 
 interface ModalFase1Props {
     isOpen: boolean

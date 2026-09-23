@@ -1,7 +1,7 @@
 import React from 'react';
 import { Modal } from '../../ui/Modals/index';
 import { cn } from '@/utils/cn';
-import { formatFecha, formatFechaHora, formatNumberWithDots } from '@/utils/helpsVincu';
+import { formatNumberWithDots } from '@/utils/helpsVincu';
 
 interface ModalFase2DetalleProps {
     isOpen: boolean;

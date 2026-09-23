@@ -21,35 +21,23 @@ interface ApiResponse {
     filters: any
 }
 
-// ✅ Tamaño del bloque que se pide al backend
-const CHUNK_SIZE = 1000
-
 const SegmentacionSalarial = () => {
-    // ✅ Acumulador de TODOS los registros traídos del backend
     const [asociados, setAsociados] = useState<Asociado[]>([])
-
     const [segmentos, setSegmentos] = useState<SegmentoData>({ oro: [], plata: [], bronce: [] })
     const [loading, setLoading] = useState(true)
-    const [loadingMore, setLoadingMore] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [filterSegmento, setFilterSegmento] = useState<'todos' | 'oro' | 'plata' | 'bronce'>('todos')
 
-    // ✅ Paginación LOCAL
+    // Estados de paginación
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(10)
-
-    // ✅ Página del backend actualmente cargada (bloques de 100)
-    const [backendPage, setBackendPage] = useState(1)
-
-    // ✅ Total real en backend (para saber si hay más)
-    const [totalItemsBackend, setTotalItemsBackend] = useState(0)
+    const [totalItems, setTotalItems] = useState(0)
 
     // Estados para filtros
     const [filtroSalarioMin, setFiltroSalarioMin] = useState('')
     const [filtroSalarioMax, setFiltroSalarioMax] = useState('')
     const [filtroMotivo, setFiltroMotivo] = useState('')
-    const [filtroDistrito, setFiltroDistrito] = useState('')
 
     const [openDropdown, setOpenDropdown] = useState<string | null>(null)
     const dropdownRefs = useRef<Map<string, React.RefObject<HTMLButtonElement | null>>>(new Map())
@@ -75,6 +63,8 @@ const SegmentacionSalarial = () => {
         bronce: 0
     })
 
+    const [filtroDistrito, setFiltroDistrito] = useState('')
+
     const getDropdownRef = (id: string): React.RefObject<HTMLButtonElement | null> => {
         if (!dropdownRefs.current.has(id)) {
             dropdownRefs.current.set(id, React.createRef<HTMLButtonElement | null>())
@@ -82,69 +72,77 @@ const SegmentacionSalarial = () => {
         return dropdownRefs.current.get(id)!
     }
 
-    // ✅ Efecto inicial y cuando cambian filtros/orden → resetear a bloque 1
+    //  Efecto para cargar datos
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchAsociados(1, true) // página 1, resetear acumulador
+            fetchAsociados()
         }, 300)
         return () => clearTimeout(timer)
-    }, [searchTerm, filterSegmento, filtroSalarioMin, filtroSalarioMax, filtroMotivo, sortBy, sortOrder, filtroDistrito])
+    }, [currentPage, itemsPerPage, searchTerm, filterSegmento, filtroSalarioMin, filtroSalarioMax, filtroMotivo, sortBy, sortOrder, filtroDistrito])
 
-    /**
-     * ✅ Trae un bloque de 100 registros del backend
-     * @param page  Página del backend (1, 2, 3…)
-     * @param reset Si true, reemplaza el acumulador; si false, lo concatena
-     */
-    const fetchAsociados = async (page: number, reset: boolean = false) => {
+
+    const fetchAsociados = async () => {
         try {
-            if (reset) setLoading(true)
-            else setLoadingMore(true)
+            setLoading(true)
 
-            let url = `/asociados?page=${page}&limit=${CHUNK_SIZE}`
+            // ✅ Construir URL con todos los filtros
+            let url = `/asociados?page=${currentPage}&limit=${itemsPerPage}`
 
-            if (searchTerm.trim()) url += `&search=${encodeURIComponent(searchTerm.trim())}`
-            if (filterSegmento !== 'todos') url += `&segmento=${filterSegmento}`
-            if (filtroMotivo) url += `&motivo=${filtroMotivo}`
-            if (filtroSalarioMin) url += `&salarioMin=${filtroSalarioMin}`
-            if (filtroSalarioMax) url += `&salarioMax=${filtroSalarioMax}`
-            if (filtroDistrito && filtroDistrito !== 'todos') url += `&distrito=${filtroDistrito}`
-            if (sortBy) url += `&sortBy=${sortBy}&sortOrder=${sortOrder}`
+            // Filtros básicos
+            if (searchTerm.trim()) {
+                url += `&search=${encodeURIComponent(searchTerm.trim())}`
+            }
+
+            if (filterSegmento !== 'todos') {
+                url += `&segmento=${filterSegmento}`
+            }
+
+            if (filtroMotivo) {
+                url += `&motivo=${filtroMotivo}`
+            }
+
+            if (filtroSalarioMin) {
+                url += `&salarioMin=${filtroSalarioMin}`
+            }
+
+            if (filtroSalarioMax) {
+                url += `&salarioMax=${filtroSalarioMax}`
+            }
+
+            if (filtroDistrito && filtroDistrito !== 'todos') {
+                url += `&distrito=${filtroDistrito}`
+            }
+
+            // ✅ Ordenamiento
+            if (sortBy) {
+                url += `&sortBy=${sortBy}&sortOrder=${sortOrder}`
+            }
 
             const response = await FetchDynamic(url)
             if (!response.ok) throw new Error('Error al cargar los asociados')
 
             const result: ApiResponse = await response.json()
-            const nuevos = result.data || []
+            const asociadosData = result.data || []
 
-            setTotalItemsBackend(result.pagination?.total || nuevos.length)
-            setBackendPage(page)
+            setAsociados(asociadosData)
+            setTotalItems(result.pagination?.total || asociadosData.length)
 
-            if (reset) {
-                setAsociados(nuevos)
-                setCurrentPage(1)
-                setSegmentos(segmentarAsociados(nuevos))
-            } else {
-                // ✅ Concatenar con los existentes (evitando duplicados por NCTA05)
-                setAsociados(prev => {
-                    const ids = new Set(prev.map(a => a.NCTA05))
-                    const sinDuplicados = nuevos.filter(a => !ids.has(a.NCTA05))
-                    const merged = [...prev, ...sinDuplicados]
-                    setSegmentos(segmentarAsociados(merged))
-                    return merged
-                })
-            }
+            const segmentados = segmentarAsociados(asociadosData)
+            setSegmentos(segmentados)
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Error desconocido')
         } finally {
             setLoading(false)
-            setLoadingMore(false)
         }
     }
 
     const fetchEstadisticas = async () => {
         try {
             const queryParams = new URLSearchParams()
-            if (searchTerm.trim()) queryParams.append('search', searchTerm.trim())
+
+            if (searchTerm.trim()) {
+                queryParams.append('search', searchTerm.trim())
+            }
 
             const response = await FetchDynamic(`/asociados/estadisticas?${queryParams.toString()}`)
             if (!response.ok) throw new Error('Error al cargar estadísticas')
@@ -165,15 +163,6 @@ const SegmentacionSalarial = () => {
         fetchEstadisticas()
     }, [searchTerm])
 
-    // ✅ Datos de la página actual (slice local)
-    const asociadosPaginados = useMemo(() => {
-        const start = (currentPage - 1) * itemsPerPage
-        const end = start + itemsPerPage
-        return asociados.slice(start, end)
-    }, [asociados, currentPage, itemsPerPage])
-
-
-
     const segmentarAsociados = (data: Asociado[]): SegmentoData => {
         const oro: Asociado[] = []
         const plata: Asociado[] = []
@@ -181,9 +170,14 @@ const SegmentacionSalarial = () => {
 
         data.forEach((asociado) => {
             const salario = parseFloat(asociado.BASE05)
-            if (salario >= 5000000) oro.push(asociado)
-            else if (salario >= 3500000 && salario <= 4999999) plata.push(asociado)
-            else bronce.push(asociado)
+
+            if (salario >= 5000000) {
+                oro.push(asociado)
+            } else if (salario >= 3500000 && salario <= 4999999) {
+                plata.push(asociado)
+            } else {
+                bronce.push(asociado)
+            }
         })
 
         const sortBySalary = (a: Asociado, b: Asociado) => parseFloat(b.BASE05) - parseFloat(a.BASE05)
@@ -214,6 +208,7 @@ const SegmentacionSalarial = () => {
         }
     }
 
+    // ✅ Función para limpiar todos los filtros
     const limpiarFiltros = () => {
         setFiltroDistrito('')
         setFiltroSalarioMin('')
@@ -224,26 +219,14 @@ const SegmentacionSalarial = () => {
         setSortBy('DIST05')
         setSortOrder('asc')
         setCurrentPage(1)
-        setBackendPage(1)
     }
 
+    const aplicarFiltros = () => {
+        setCurrentPage(1)
+    }
 
-
-    /**
-     * ✅ Cambio de página LOCAL. Si el usuario va a una página que aún no
-     * está cargada en memoria, disparamos el fetch del siguiente bloque.
-     */
-    const handlePageChange = async (page: number) => {
+    const handlePageChange = (page: number) => {
         setCurrentPage(page)
-
-        const startIndex = (page - 1) * itemsPerPage
-        const endIndex = startIndex + itemsPerPage
-
-        // Si la página requiere datos que aún no tenemos y hay más en el backend
-        if (endIndex > asociados.length && asociados.length < totalItemsBackend) {
-            const nextBackendPage = backendPage + 1
-            await fetchAsociados(nextBackendPage, false)
-        }
     }
 
     const handleItemsPerPageChange = (newItemsPerPage: number) => {
@@ -262,16 +245,24 @@ const SegmentacionSalarial = () => {
             sortBy: sortBy || undefined,
             sortOrder: sortOrder || undefined,
         };
+
     }, [searchTerm, filtroDistrito, filtroMotivo, filterSegmento, filtroSalarioMax, filtroSalarioMin, sortBy, sortOrder]);
+
 
     const hasActiveFilters = useMemo(() => {
         return Boolean(
-            filtroDistrito || filtroMotivo || filterSegmento !== 'todos' ||
-            filtroSalarioMin || filtroSalarioMax || searchTerm
+            filtroDistrito ||
+            filtroMotivo ||
+            filterSegmento !== 'todos' ||
+            filtroSalarioMin ||
+            filtroSalarioMax ||
+            searchTerm
         );
     }, [filtroDistrito, filtroMotivo, filterSegmento, filtroSalarioMin, filtroSalarioMax, searchTerm]);
 
-    // ✅ Carga inicial
+
+    //    const [datosOriginales, setDatosOriginales] = useState([])
+
     if (loading) {
         return (
             <div className="flex-1 overflow-y-auto p-6">
@@ -288,7 +279,7 @@ const SegmentacionSalarial = () => {
                 <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                     <p className="text-red-600 dark:text-red-400">Error: {error}</p>
                     <button
-                        onClick={() => fetchAsociados(1, true)}
+                        onClick={fetchAsociados}
                         className="mt-2 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
                     >
                         Reintentar
@@ -312,8 +303,10 @@ const SegmentacionSalarial = () => {
                         </p>
                     </div>
 
+
                     {/* Tarjetas de resumen */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 mb-4">
+                        {/* Total */}
                         <div className="bg-white dark:bg-orbit-surface2/30 rounded-lg border border-gray-200 dark:border-orbit-border px-3 py-2 sm:px-4 sm:py-3">
                             <p className="text-[16px] sm:text-lg text-gray-500 dark:text-slate-400">Total</p>
                             <p className="text-lg sm:text-xl font-bold text-gray-900 dark:text-slate-100">
@@ -321,28 +314,31 @@ const SegmentacionSalarial = () => {
                             </p>
                         </div>
 
+                        {/* Oro - Amarillo/dorado */}
                         <div className="bg-gradient-to-br from-yellow-50 to-amber-100 dark:from-yellow-900/20 dark:to-amber-900/20 rounded-lg border border-yellow-300 dark:border-yellow-600/50 px-3 py-2 sm:px-4 sm:py-3">
                             <p className="text-[16px] sm:text-lg font-bold text-yellow-600 dark:text-yellow-300">Oro</p>
                             <p className="text-lg sm:text-xl font-bold text-yellow-600 dark:text-yellow-400">
                                 {estadisticas.oro.toLocaleString('es-CO')}
                             </p>
-                            <p className="text-[14px] text-yellow-600 dark:text-yellow-400/70">≥ $5.000.000</p>
+                            <p className="text-[14px] sm:text-[14px] text-yellow-600 dark:text-yellow-400/70">≥ $5.000.000</p>
                         </div>
 
+                        {/* Plata - Gris con brillo metálico */}
                         <div className="bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-800/50 dark:to-gray-700/30 rounded-lg border border-gray-300 dark:border-gray-600/50 px-3 py-2 sm:px-4 sm:py-3">
                             <p className="text-[16px] sm:text-lg font-bold text-gray-700 dark:text-gray-300">Plata</p>
                             <p className="text-lg sm:text-xl font-bold text-gray-700 dark:text-gray-200">
                                 {estadisticas.plata.toLocaleString('es-CO')}
                             </p>
-                            <p className="text-[14px] text-gray-500 dark:text-gray-400/70">$3.5M - $4.9M</p>
+                            <p className="text-[14px] sm:text-[14px] text-gray-500 dark:text-gray-400/70">$3.5M - $4.9M</p>
                         </div>
 
+                        {/* Bronce - Cobre/naranja */}
                         <div className="bg-gradient-to-br from-orange-50 to-amber-100 dark:from-orange-900/20 dark:to-amber-900/20 rounded-lg border border-orange-300 dark:border-orange-600/50 px-3 py-2 sm:px-4 sm:py-3">
                             <p className="text-[16px] sm:text-lg font-bold text-orange-600 dark:text-orange-300">Bronce</p>
                             <p className="text-lg sm:text-xl font-bold text-orange-600 dark:text-orange-400">
                                 {estadisticas.bronce.toLocaleString('es-CO')}
                             </p>
-                            <p className="text-[14px] text-orange-600 dark:text-orange-400/70">&lt; $3.5M</p>
+                            <p className="text-[14px] sm:text-[14px] text-orange-600 dark:text-orange-400/70">&lt; $3.5M</p>
                         </div>
                     </div>
 
@@ -355,6 +351,7 @@ const SegmentacionSalarial = () => {
                         />
                     </div>
 
+                    {/* ✅ Filtros y búsqueda */}
                     <FiltrosAvanzados
                         searchTerm={searchTerm}
                         setSearchTerm={setSearchTerm}
@@ -384,29 +381,53 @@ const SegmentacionSalarial = () => {
                             <Table className="w-full">
                                 <TableHeader className="bg-gray-50 dark:bg-orbit-surface2/50 border-b border-gray-200 dark:border-orbit-border">
                                     <TableRow>
-                                        <TableCell isHeader className="px-4 py-3 text-left text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">#</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-left text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Agencia</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-left text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Nombres</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Cédula</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Edad</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Ciudad</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Teléfono</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Nómina</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Fecha Retiro</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-right text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Salario</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Clasificación</TableCell>
-                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">Acciones</TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-left text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            #
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-left text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Agencia
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Edad
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-left text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Nombres
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Cédula
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Ciudad
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-left text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Teléfono
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-left text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Nómina
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Fecha Retiro
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-right text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Salario
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Clasificación
+                                        </TableCell>
+                                        <TableCell isHeader className="px-4 py-3 text-center text-md font-bold text-gray-800 dark:text-slate-200 uppercase tracking-wider">
+                                            Acciones
+                                        </TableCell>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody className="divide-y divide-gray-200 dark:divide-orbit-border">
-                                    {asociadosPaginados.length === 0 ? (
+                                    {filteredAsociados.length === 0 ? (
                                         <TableRow>
-                                            <TableCell colSpan={12} className="px-4 py-8 text-center text-gray-500 dark:text-slate-400">
+                                            <TableCell colSpan={10} className="px-4 py-8 text-center text-gray-500 dark:text-slate-400">
                                                 No se encontraron asociados
                                             </TableCell>
                                         </TableRow>
                                     ) : (
-                                        asociadosPaginados.map((asociado, index) => {
+                                        filteredAsociados.map((asociado, index) => {
                                             const salario = parseFloat(asociado.BASE05)
                                             let segmento = 'bronce'
                                             if (salario >= 5000000) segmento = 'oro'
@@ -415,26 +436,54 @@ const SegmentacionSalarial = () => {
                                             const globalIndex = (currentPage - 1) * itemsPerPage + index + 1
 
                                             return (
-                                                <TableRow key={asociado.NCTA05 || index} className="hover:bg-gray-50 dark:hover:bg-orbit-surface2/50 transition-colors">
-                                                    <TableCell className="px-4 py-3 text-sm text-gray-700 font-bold dark:text-slate-400">{globalIndex}</TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{asociado.DIST05} - {asociado.DESC03}</TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{asociado.DESC05}</TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-center text-gray-900 dark:text-slate-300">{formatNumberWithDots(asociado.NNIT05)}</TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100 text-center">
-                                                        <span className={getEdadColor(asociado.FECN05)}>{calcularEdad(asociado.FECN05)}</span>
+                                                <TableRow
+                                                    key={asociado.NCTA05 || index}
+                                                    className="hover:bg-gray-50 dark:hover:bg-orbit-surface2/50 transition-colors"
+                                                >
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
+                                                        {globalIndex}
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-center text-gray-900 dark:text-slate-300">{asociado.CIUD05}</TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-gray-900 dark:text-slate-300">{getTelefonos(asociado)}</TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
+                                                        {asociado.DIST05} - {asociado.DESC03}
+                                                    </TableCell>
+
+                                                    <TableCell className="px-4 py-3 text-md font-medium text-gray-900 dark:text-slate-100 text-center">
+                                                        <span className={getEdadColor(asociado.FECN05)}>
+                                                            {calcularEdad(asociado.FECN05)}
+                                                        </span>
+                                                    </TableCell>
+
+                                                    <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
+                                                        {asociado.DESC05}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-center text-gray-900 dark:text-slate-300">
+                                                        {formatNumberWithDots(asociado.NNIT05)}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-center text-gray-900 dark:text-slate-300">
+                                                        {asociado.CIUD05}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-gray-900 dark:text-slate-300">
+                                                        {getTelefonos(asociado)}
+                                                    </TableCell>
                                                     <TableCell className="px-4 py-3 text-sm text-left text-gray-900 dark:text-slate-300">
                                                         <div className="flex flex-col">
                                                             <span className="text-gray-900 dark:text-gray-200 font-medium text-sm">{asociado.DESC04}</span>
-                                                            <span className="text-red-600 dark:text-red-400 font-medium text-sm">{getMotivoRetiro(asociado.MORE05)}</span>
+                                                            <span className="text-red-600 dark:text-red-400 font-medium text-sm">
+                                                                {getMotivoRetiro(asociado.MORE05)}
+                                                            </span>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-center text-gray-900 dark:text-slate-300 text-nowrap">{formatFecha(asociado.FRDA05)}</TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-slate-100">{formatSalario(asociado.BASE05)}</TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-center text-gray-900 dark:text-slate-300 text-nowrap">
+                                                        {formatFecha(asociado.FRDA05)}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-sm text-right font-semibold text-gray-900 dark:text-slate-100">
+                                                        {formatSalario(asociado.BASE05)}
+                                                    </TableCell>
                                                     <TableCell className="px-4 py-3 text-center">
-                                                        <span className={cn('inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold border', getSegmentoColor(segmento))}>
+                                                        <span className={cn(
+                                                            'inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold border',
+                                                            getSegmentoColor(segmento)
+                                                        )}>
                                                             {getSegmentoBadge(segmento)}
                                                         </span>
                                                     </TableCell>
@@ -460,7 +509,11 @@ const SegmentacionSalarial = () => {
                                                             >
                                                                 <div className="py-1">
                                                                     <button
-                                                                        onClick={() => { setNitSeleccionado(asociado.NNIT05); setModalDetalleOpen(true); setOpenDropdown(null) }}
+                                                                        onClick={() => {
+                                                                            setNitSeleccionado(asociado.NNIT05)
+                                                                            setModalDetalleOpen(true)
+                                                                            setOpenDropdown(null)
+                                                                        }}
                                                                         className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
                                                                     >
                                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -470,7 +523,12 @@ const SegmentacionSalarial = () => {
                                                                         Ver detalles
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => { setCedulaHistorial(asociado.NNIT05); setNombreHistorial(asociado.DESC05); setModalHistorialOpen(true); setOpenDropdown(null) }}
+                                                                        onClick={() => {
+                                                                            setCedulaHistorial(asociado.NNIT05)
+                                                                            setNombreHistorial(asociado.DESC05)
+                                                                            setModalHistorialOpen(true)
+                                                                            setOpenDropdown(null)
+                                                                        }}
                                                                         className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
                                                                     >
                                                                         <svg className="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -479,7 +537,11 @@ const SegmentacionSalarial = () => {
                                                                         Ver historial
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => { setAsociadoSeleccionado(asociado); setModalGestionOpen(true); setOpenDropdown(null) }}
+                                                                        onClick={() => {
+                                                                            setAsociadoSeleccionado(asociado)
+                                                                            setModalGestionOpen(true)
+                                                                            setOpenDropdown(null)
+                                                                        }}
                                                                         className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
                                                                     >
                                                                         <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,7 +550,10 @@ const SegmentacionSalarial = () => {
                                                                         Crear gestión
                                                                     </button>
                                                                     <button
-                                                                        onClick={() => { console.log('Cambiar estado:', asociado); setOpenDropdown(null) }}
+                                                                        onClick={() => {
+                                                                            console.log('Cambiar estado:', asociado)
+                                                                            setOpenDropdown(null)
+                                                                        }}
                                                                         className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
                                                                     >
                                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -508,10 +573,9 @@ const SegmentacionSalarial = () => {
                             </Table>
                         </div>
 
-                        {/* ✅ Paginador con total del BACKEND (no local) */}
                         <Pagination
                             currentPage={currentPage}
-                            totalItems={totalItemsBackend}
+                            totalItems={totalItems}
                             itemsPerPage={itemsPerPage}
                             onPageChange={handlePageChange}
                             onItemsPerPageChange={handleItemsPerPageChange}
@@ -524,20 +588,32 @@ const SegmentacionSalarial = () => {
 
             <ModalCrearGestion
                 isOpen={modalGestionOpen}
-                onClose={() => { setModalGestionOpen(false); setAsociadoSeleccionado(null) }}
-                onSuccess={() => console.log('Gestión creada exitosamente')}
+                onClose={() => {
+                    setModalGestionOpen(false)
+                    setAsociadoSeleccionado(null)
+                }}
+                onSuccess={() => {
+                    console.log('Gestión creada exitosamente')
+                }}
                 asociado={asociadoSeleccionado}
             />
 
             <ModalVerDetalle
                 isOpen={modalDetalleOpen}
-                onClose={() => { setModalDetalleOpen(false); setNitSeleccionado('') }}
+                onClose={() => {
+                    setModalDetalleOpen(false)
+                    setNitSeleccionado('')
+                }}
                 nit={nitSeleccionado}
             />
 
             <ModalHistorialGestiones
                 isOpen={modalHistorialOpen}
-                onClose={() => { setModalHistorialOpen(false); setCedulaHistorial(''); setNombreHistorial('') }}
+                onClose={() => {
+                    setModalHistorialOpen(false)
+                    setCedulaHistorial('')
+                    setNombreHistorial('')
+                }}
                 cedula={cedulaHistorial}
                 nombre={nombreHistorial}
             />

@@ -50,41 +50,30 @@ export const formatNumberWithDots = (number: number | string) => {
 
 //FORMATEAR TELEFONO EN CASO QUE SEAN VARIOS.
 export const getTelefonos = (asociado: Asociado): string => {
-    const telefonos: string[] = [];
-    
+    // ✅ Set para evitar duplicados
+    const telefonosSet = new Set<string>();
+
     // Función auxiliar para validar si el teléfono es válido
     const isValidPhone = (phone: string | undefined): boolean => {
         return !!phone && phone !== '0' && phone.trim() !== '';
     };
-    
-    // Agregar WhatsApp si existe y es válido
-    if (isValidPhone(asociado.WHA105)) {
-        telefonos.push(`WPP: ${asociado.WHA105}`);
-    }
-    
-    // Agregar teléfono celular si existe y es válido
-    if (isValidPhone(asociado.TCEL05)) {
-        telefonos.push(`CEL: ${asociado.TCEL05}`);
-    }
-    
-    // Agregar otros teléfonos si existen
-    if (isValidPhone(asociado.TCE205)) {
-        telefonos.push(`CEL2: ${asociado.TCE205}`);
-    }
-    
-    if (isValidPhone(asociado.TCE305)) {
-        telefonos.push(`CEL3: ${asociado.TCE305}`);
-    }
-    
-    if (isValidPhone(asociado.WHA205)) {
-        telefonos.push(`WPP2: ${asociado.WHA205}`);
-    }
-    
-    if (isValidPhone(asociado.WHA305)) {
-        telefonos.push(`WPP3: ${asociado.WHA305}`);
-    }
-    
-    return telefonos.length > 0 ? telefonos.join(' - ') : 'N/A';
+
+    // Función auxiliar para agregar solo si es válido y no está repetido
+    const addPhone = (phone: string | undefined) => {
+        if (isValidPhone(phone)) {
+            telefonosSet.add(phone!.trim());
+        }
+    };
+
+    // Agregar en el orden deseado
+    addPhone(asociado.WHA105);
+    addPhone(asociado.TCEL05);
+    addPhone(asociado.TCE205);
+    addPhone(asociado.TCE305);
+    addPhone(asociado.WHA205);
+    addPhone(asociado.WHA305);
+
+    return telefonosSet.size > 0 ? Array.from(telefonosSet).join(' - ') : 'No tiene registrado';
 };
 
 
@@ -118,4 +107,42 @@ const MOTIVOS_RETIRO: Record<string, string> = {
 export const getMotivoRetiro = (codigo: string | undefined): string => {
     if (!codigo) return 'N/A';
     return MOTIVOS_RETIRO[codigo] || `Código ${codigo} (Sin descripción)`;
+};
+
+export const calcularEdad = (fechaNacimiento: string):number|string => {
+        if (!fechaNacimiento || fechaNacimiento === '0' || fechaNacimiento === '') {
+            return 'No disponible'
+        }
+
+        // El formato es AAAAMMDD (ej: 19470307)
+        const año = parseInt(fechaNacimiento.substring(0, 4))
+        const mes = parseInt(fechaNacimiento.substring(4, 6)) - 1 // Meses empiezan en 0
+        const dia = parseInt(fechaNacimiento.substring(6, 8))
+
+        const fechaNac = new Date(año, mes, dia)
+        const hoy = new Date()
+
+        let edad = hoy.getFullYear() - fechaNac.getFullYear()
+        const mesActual = hoy.getMonth()
+        const diaActual = hoy.getDate()
+
+        // Si aún no ha cumplido años este año
+        if (mesActual < mes || (mesActual === mes && diaActual < dia)) {
+            edad--
+        }
+
+        return edad
+};
+
+export const getEdadColor = (fechaNacimiento: string) => {
+     const edad = calcularEdad(fechaNacimiento)
+        if(typeof edad === "string"){
+            return 'blue'
+        }
+
+        if(edad >= 75) {
+             return 'text-red-600 dark:text-red-400 font-bold'
+        }
+
+
 };

@@ -14,6 +14,8 @@ interface ModalCambiarEstadoProps {
         nombres: string;
         apellidos: string;
         estado: string;
+        centro_costo?: number | null;
+        agencia_nombre?: string | null;
     } | null;
     onSuccess?: () => void;
 }

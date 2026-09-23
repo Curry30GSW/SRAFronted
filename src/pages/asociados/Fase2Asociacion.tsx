@@ -4,45 +4,16 @@ import { FetchDynamic } from '../../components/Api/FetchDynamic';
 import { cn } from '../../utils/cn';
 import {
     formatFechaHora,
-    formatNumberWithDots,
-    formatTelefonos
+    formatNumberWithDots
 } from '../../utils/helpsVincu';
 import Pagination from '../../components/ui/Pagination/Pagination';
 import { Dropdown } from '../../components/ui/Dropdown/Dropdown';
-// import { ModalFase2Detalle } from '../../components/Modals/ModalFase2Detalle';
-// import { ModalFase2Referencias } from '../../components/Modals/ModalFase2Referencias';
+import { ModalFase2Detalle } from '../../components/Modals/FaseDos/ModalFase2Detalle';
+import { ModalFase2Referencias } from '../../components/Modals/FaseDos/ModalFase2Referencias';
 import Swal from 'sweetalert2';
+import { Fase2Item } from '@/types/VinculacionF2';
+import { generarPDFVinculacionF2 } from '../../components/pdf/FormatoVinculacionF2PDF';
 
-interface Fase2Item {
-    id_fase2: number;
-    id_postulacion: number;
-    id_asociado: number;
-    score: number;
-    fecha_score: string;
-    familiar1_nombre: string;
-    familiar1_parentesco: string;
-    familiar1_telefono: string;
-    familiar2_nombre: string;
-    familiar2_parentesco: string;
-    familiar2_telefono: string;
-    personal1_nombre: string;
-    personal1_telefono: string;
-    personal1_direccion: string;
-    personal2_nombre: string;
-    personal2_telefono: string;
-    personal2_direccion: string;
-    conyuge_nombre: string;
-    conyuge_cedula: string;
-    conyuge_telefono: string;
-    fecha_creacion: string;
-    fecha_actualizacion: string;
-    // Datos de la postulación
-    estado: string;
-    nombres: string;
-    apellidos: string;
-    numero_documento: string;
-    correo_electronico: string;
-}
 
 interface Fase2ApiResponse {
     success: boolean;
@@ -104,7 +75,7 @@ const Fase2Gestion = () => {
             setLoading(true);
             setError(null);
 
-            let url = `/fase2?page=${currentPage}&limit=${itemsPerPage}`;
+            let url = `/vinculacion/fase2?page=${currentPage}&limit=${itemsPerPage}`;
 
             if (searchTerm.trim()) {
                 url += `&search=${encodeURIComponent(searchTerm.trim())}`;
@@ -160,6 +131,58 @@ const Fase2Gestion = () => {
         conReferencias: solicitudes.filter(s => verificarReferencias(s)).length,
         sinReferencias: solicitudes.filter(s => !verificarReferencias(s)).length
     };
+
+    const handleGenerarPDF = async (solicitud: Fase2Item) => {
+        try {
+            Swal.fire({
+                title: 'Generando PDF...',
+                text: 'Obteniendo datos del solicitante',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            const response = await FetchDynamic(`/vinculacion/fase2/${solicitud.id_fase2}`);
+            const responseText = await response.text();
+            let result: { data?: Fase2Item; message?: string; error?: string } = {};
+
+            try {
+                result = responseText ? JSON.parse(responseText) : {};
+            } catch { }
+
+            if (!response.ok) {
+                const serverMessage = result.message || result.error || responseText;
+                throw new Error(
+                    `No se pudieron obtener los datos de Fase 2 (${response.status} ${response.statusText})${serverMessage ? `: ${serverMessage}` : ''}`
+                );
+            }
+
+            if (!result.data) {
+                throw new Error('La respuesta de Fase 2 no contiene los datos del solicitante');
+            }
+
+            await generarPDFVinculacionF2(result.data);
+
+            await Swal.fire({
+                icon: 'success',
+                title: 'Exitoso',
+                html: `Se ha generado el PDF <strong>Fase2</strong>`,
+                timer: 2000,
+                showConfirmButton: false
+            })
+
+
+        } catch (error) {
+            console.error('Error al generar el PDF de Fase 2:', error);
+            await Swal.fire({
+                icon: 'error',
+                title: 'No se pudo generar el PDF',
+                text: error instanceof Error ? error.message : 'Error desconocido al generar el PDF'
+            });
+        }
+
+    }
 
     if (loading) {
         return (
@@ -297,23 +320,25 @@ const Fase2Gestion = () => {
                                             const tieneReferencias = verificarReferencias(solicitud);
                                             const globalIndex = (currentPage - 1) * itemsPerPage + index + 1;
 
+                                            // console.log("fase2", solicitud.id_fase2)
+
                                             return (
                                                 <TableRow
                                                     key={solicitud.id_fase2}
                                                     className="hover:bg-gray-50 dark:hover:bg-orbit-surface2/50 transition-colors"
                                                 >
-                                                    <TableCell className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
+                                                    <TableCell className="px-4 py-3 text-md text-gray-500 dark:text-slate-400">
                                                         {globalIndex}
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">
+                                                    <TableCell className="px-4 py-3 text-md font-medium text-gray-900 dark:text-slate-100">
                                                         {solicitud.nombres} {solicitud.apellidos}
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-center text-gray-900 dark:text-slate-300">
+                                                    <TableCell className="px-4 py-3 text-md text-center text-gray-900 dark:text-slate-300">
                                                         {formatNumberWithDots(solicitud.numero_documento)}
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-center">
+                                                    <TableCell className="px-4 py-3 text-md text-center">
                                                         <span className={cn(
-                                                            'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+                                                            'inline-flex items-center px-2.5 py-0.5 rounded-full text-md font-medium',
                                                             solicitud.score >= 650
                                                                 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                                                 : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
@@ -321,31 +346,46 @@ const Fase2Gestion = () => {
                                                             {solicitud.score}
                                                         </span>
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-center">
+
+                                                    <TableCell className="px-4 py-3 text-md text-center">
                                                         {tieneReferencias ? (
-                                                            <span className="inline-flex items-center gap-1 text-green-600 dark:text-green-400">
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
-                                                                </svg>
-                                                                Completas
+
+                                                            <span className="inline-flex items-center gap-1 px-3 py-1.5 
+                                                                        bg-gradient-to-br from-green-500 to-emerald-500
+                                                                        rounded-lg shadow-md shadow-green-500/30
+                                                                        text-white font-bold  dark:text-green-400  
+                                                                        
+                                                                        animate-pulse
+                                                                        hover:shadow hover:shadow-green-500/30
+                                                                        transition-all duration-300
+                                                                        border border-green-300
+                                                            ">
+                                                                COMPLETADO
                                                             </span>
                                                         ) : (
-                                                            <span className="inline-flex items-center gap-1 text-yellow-600 dark:text-yellow-400">
-                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                                                                </svg>
-                                                                Pendientes
+                                                            <span className="inline-flex items-center gap-1 px-3 py-1
+                                                                    bg-gradient-to-br from-yellow-400 to-amber-400
+                                                                    rounded-lg shadow-md shadow-yellow-500/30
+                                                                    text-gray-800 text-bold dark:text-gray-100
+                                                                    animate-pulse
+                                                                    hover:shadow hover:shadow-yellow-500/30
+                                                                    transition-all duration-300
+                                                                    border border-yellow-300
+                                                            ">
+                                                                PENDIENTES
                                                             </span>
                                                         )}
                                                     </TableCell>
-                                                    <TableCell className="px-4 py-3 text-sm text-center text-gray-900 dark:text-slate-300">
+
+                                                    <TableCell className="px-4 py-3 text-md text-center text-gray-900 dark:text-slate-300">
                                                         {formatFechaHora(solicitud.fecha_creacion)}
                                                     </TableCell>
                                                     <TableCell className="px-4 py-3 text-center">
-                                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold border bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300">
+                                                        <span className="inline-flex items-center px-3 py-1 rounded-full text-md font-semibold border bg-blue-100 text-blue-800 border-blue-300 dark:bg-blue-900/30 dark:text-blue-300">
                                                             En trámite
                                                         </span>
                                                     </TableCell>
+
                                                     <TableCell className="px-4 py-3 text-center">
                                                         <div className="flex items-center justify-center">
                                                             <button
@@ -383,6 +423,22 @@ const Fase2Gestion = () => {
                                                                         Ver detalles
                                                                     </button>
 
+                                                                    {/*  Generar PDF - Siempre visible */}
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            handleGenerarPDF(solicitud);
+                                                                            setOpenDropdown(null);
+                                                                        }}
+                                                                        className="w-full px-4 py-2 text-sm text-left text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2 border-t border-gray-100 dark:border-gray-700 mt-1 pt-1"
+                                                                    >
+                                                                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 11v6m3-3H9" />
+                                                                        </svg>
+                                                                        Generar PDF
+                                                                    </button>
+
+
                                                                     {/* Diligenciar referencias */}
                                                                     <button
                                                                         onClick={() => {
@@ -395,7 +451,7 @@ const Fase2Gestion = () => {
                                                                         <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                                         </svg>
-                                                                        {tieneReferencias ? 'Editar referencias' : 'Diligenciar referencias'}
+                                                                        {tieneReferencias ? 'Editar referencias' : 'Iniciar proceso'}
                                                                     </button>
 
                                                                     {/* Ver historial */}

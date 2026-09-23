@@ -24,7 +24,18 @@ const AuthContext = createContext<AuthContextType>({
 
 const isLoginRoute = () => {
     const path = window.location.pathname.replace(/\/+$/, '');
-    return ['/sign-in', '/signin', '/sra/sign-in', '/sra/signin', '/sra', '/'].includes(path);
+    const isLoginPath = [
+        '/sign-in',
+        '/signin',
+        '/sra/sign-in',
+        '/sra/signin',
+        '/sra',
+        '/',
+        '/afiliacion',
+        '/sra/afiliacion',
+    ].includes(path);
+
+    return isLoginPath || path.startsWith('/afiliacion/') || path.startsWith('/sra/afiliacion/');
 };
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
